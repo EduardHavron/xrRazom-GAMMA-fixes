@@ -47,3 +47,4 @@
 | zz xrRazom Fix - Remember Belt | Remember Outfit Belt терял пояс у пира после переподключения |
 | zz xrRazom Fix - Weapon Parts Tooltip | вылет пира при наведении на оружие в трупе (Momopate's Barrel Condition) |
 | zz Workshop Ammo Material Fix | верстак не списывал одну коробку материала (не xrRazom, работает и в соло) |
+| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA помечал все трупы-зеркала как убитые пиром |
