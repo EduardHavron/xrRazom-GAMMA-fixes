@@ -1,0 +1,50 @@
+--[[
+  xrRazom 1.4 fix: turned-in repeatable tasks in task syncs. Install on every peer.
+  Split out of "zz xrRazom Fixes" (fix 3).
+
+  3. Completed repeatable tasks stay in the host's task_info with stage 255 until their
+     repeat timeout. If one arrives at a peer as a task sync, the peer would re-give
+     a task that is already turned in. Fix: a peer ignores stage-255 syncs for tasks it
+     does not have active.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+-- 3. ignore turned-in repeatable tasks in task syncs ------------------------------
+
+local function wrap_task_sync(name, stage_arg)
+	local orig = _G[name]
+	if type(orig) ~= "function" then
+		L("tasksync: _G.%s missing, skipped", name)
+		return
+	end
+	_G[name] = function(...)
+		local args = { ... }
+		local task_id, stage = args[stage_arg.id], args[stage_arg.stage]
+		if stage == 255 and not (XrrIsHost and XrrIsHost()) then
+			local tm = task_manager.get_task_manager()
+			local tsk = tm and task_id and tm.task_info[task_id]
+			if not (tsk and tsk.t) then
+				L("tasksync: %s ignored turned-in task %s (stage 255)", name, tostring(task_id))
+				return
+			end
+		end
+		return orig(...)
+	end
+end
+
+local function patch_task_sync()
+	local _ = xrr_net_client -- force-load so its _G handlers exist before wrapping
+	-- OnPlayerTask(player_netid, task_id, task_giver, task_mid, task_state, task_stage, ...)
+	wrap_task_sync("OnPlayerTask", { id = 2, stage = 6 })
+	-- OnJoinTask(task_id, giver_id, stage, target_id, ...)
+	wrap_task_sync("OnJoinTask", { id = 1, stage = 3 })
+	-- OnTaskSyncWith(netid, task_id, giver_id, stage)
+	wrap_task_sync("OnTaskSyncWith", { id = 2, stage = 4 })
+	L("tasksync: stage-255 guard installed")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_task_sync)
+	if not ok then L("install error: %s", tostring(err)) end
+end

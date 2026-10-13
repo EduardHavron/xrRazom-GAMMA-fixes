@@ -1,0 +1,95 @@
+--[[
+  xrRazom 1.4 fix: quest variable serialization. Install on the host AND every peer.
+  Split out of "zz xrRazom Fixes" (fix 1).
+
+  1. xrr_quest_serialize sends table-valued quest variables through
+     utils_data.write_to_ini_str / read_from_ini_str, which do not exist in Anomaly
+     or any installed mod. The pcall swallows the error, so every table variable
+     (bounty target data, task state tables) silently never reaches the peer, and the
+     peer keeps stale tables from earlier runs of the same repeatable task.
+     Fix: tables go as hex(marshal.encode(t)); strings with tab/newline/\3 go as hex.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local CTRL = "[\t\n\r\3]"
+
+-- 1. quest variable serialization ------------------------------------------------
+
+local function patch_serializer()
+	local m = xrr_quest_serialize
+	if not (m and m.serialize_quest_vars and m.deserialize_quest_vars) then
+		L("serializer: xrr_quest_serialize missing, skipped")
+		return
+	end
+	if not (marshal and marshal.encode and marshal.decode) then
+		L("serializer: marshal missing, skipped")
+		return
+	end
+	local hex, unhex = utils_data.string2hex, utils_data.hex2string
+
+	m.serialize_quest_vars = function(vars)
+		if not vars or not next(vars) then return "" end
+		local parts = {}
+		for k, v in pairs(vars) do
+			local key, t = tostring(k), type(v)
+			if not key:find(CTRL) then
+				if t == "string" then
+					if v:find(CTRL) then
+						parts[#parts + 1] = key .. "\tH\t" .. hex(v)
+					else
+						parts[#parts + 1] = key .. "\ts\t" .. v
+					end
+				elseif t == "number" then
+					parts[#parts + 1] = key .. "\tn\t" .. tostring(v)
+				elseif t == "boolean" then
+					parts[#parts + 1] = key .. "\tb\t" .. (v and "1" or "0")
+				elseif t == "table" then
+					local ok, enc = pcall(marshal.encode, v)
+					if ok and enc then
+						parts[#parts + 1] = key .. "\tM\t" .. hex(enc)
+					else
+						L("serialize: table %s not encodable: %s", key, tostring(enc))
+					end
+				end
+			end
+		end
+		return table.concat(parts, "\n")
+	end
+
+	m.deserialize_quest_vars = function(blob)
+		if not blob or blob == "" then return end
+		local n = 0
+		for line in blob:gmatch("[^\n]+") do
+			local key, vtype, val = line:match("^(.+)\t(.)\t(.*)$")
+			if key and vtype then
+				if vtype == "s" then
+					utils_data.save_var(db.actor, key, val)
+				elseif vtype == "H" then
+					local ok, s = pcall(unhex, val)
+					if ok then utils_data.save_var(db.actor, key, s) end
+				elseif vtype == "n" then
+					utils_data.save_var(db.actor, key, tonumber(val))
+				elseif vtype == "b" then
+					utils_data.save_var(db.actor, key, val == "1")
+				elseif vtype == "M" then
+					local ok, tbl = pcall(function() return marshal.decode(unhex(val)) end)
+					if ok and type(tbl) == "table" then
+						-- Ids in the table are shared host ids — no translation.
+						utils_data.save_var(db.actor, key, tbl)
+						n = n + 1
+					else
+						L("deserialize: table %s failed: %s", key, tostring(tbl))
+					end
+				end
+			end
+		end
+		if n > 0 then L("deserialize: %s table var(s) applied", n) end
+	end
+	L("serializer: patched (tables via marshal+hex)")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_serializer)
+	if not ok then L("install error: %s", tostring(err)) end
+end

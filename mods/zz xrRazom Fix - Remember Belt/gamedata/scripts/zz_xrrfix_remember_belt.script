@@ -1,0 +1,86 @@
+--[[
+  xrRazom 1.4 fix: Remember Outfit Belt (G_FLAT) on a peer. Install on the host AND every peer.
+
+  The mod keeps m_data.beltMemory[outfit_id] = { items = { [item_id] = true }, date }.
+  A peer never saves, and beltMemory is not in xrRazom's peer m_data manifest, so the
+  memory of every outfit (worn or lying in the inventory) is gone after a reconnect.
+  Fix: register beltMemory as a peer-owned m_data key (the host keeps it per peer and
+  returns it at join). Item ids are shared host ids, so the table needs no translation.
+
+  While xrRazom restores the inventory at join, items go on/off the belt one by one and
+  the mod re-saves the outfit's memory from that partial belt. Fix: ignore belt saves
+  for a short grace period after the first update of a session.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local GRACE_MS = 10000
+local grace_until = nil
+
+local function in_session()
+	return (XrrIsConnected and XrrIsConnected()) or (XrrIsHosted and XrrIsHosted())
+end
+
+-- Ids must be numbers for object_id / the mod's lookups. Rewritten in place: the mod
+-- holds this same table as its belt_memory.
+local function normalize(mem)
+	if type(mem) ~= "table" then return end
+	local fixed = 0
+	for outfit_id, entry in pairs(dup_table(mem)) do
+		local nid = tonumber(outfit_id)
+		if type(entry) ~= "table" or not nid then
+			mem[outfit_id] = nil
+		else
+			if type(entry.items) == "table" then
+				local items = {}
+				for item_id in pairs(entry.items) do
+					local iid = tonumber(item_id)
+					if iid then items[iid] = true end
+				end
+				entry.items = items
+			else
+				entry.items = {}
+			end
+			entry.date = tonumber(entry.date) or 0
+			if nid ~= outfit_id then
+				mem[outfit_id] = nil
+				mem[nid] = entry
+				fixed = fixed + 1
+			end
+		end
+	end
+	if fixed > 0 then L("belt: %s outfit key(s) normalized", fixed) end
+end
+
+local function patch_remember_belt()
+	local m = remember_outfit_belt
+	if not (m and m.save_belt) then
+		L("belt: Remember Outfit Belt not installed, skipped")
+		return
+	end
+	if not (xrr_peer_mdata and xrr_peer_mdata.register) then
+		L("belt: xrr_peer_mdata.register missing, skipped")
+		return
+	end
+	xrr_peer_mdata.register("beltMemory")
+
+	-- actor_item_to_belt / actor_item_to_ruck call save_belt through the module table.
+	local orig_save = m.save_belt
+	m.save_belt = function(outfit, ...)
+		if grace_until and time_global() < grace_until then return end
+		return orig_save(outfit, ...)
+	end
+
+	RegisterScriptCallback("load_state", function(m_data)
+		pcall(normalize, m_data and m_data.beltMemory)
+	end)
+	L("belt: beltMemory registered as peer m_data, save_belt guarded")
+end
+
+function on_game_start()
+	RegisterScriptCallback("actor_on_first_update", function()
+		if in_session() then grace_until = time_global() + GRACE_MS end
+	end)
+	local ok, err = pcall(patch_remember_belt)
+	if not ok then L("install error: %s", tostring(err)) end
+end

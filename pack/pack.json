@@ -1,0 +1,13 @@
+{
+  "section": "xrRazom Sync",
+  "mods": [
+    "zz xrRazom Fix - Laser State",
+    "zz xrRazom Fix - Remember Belt",
+    "zz xrRazom Fix - Weapon Parts Tooltip",
+    "zz xrRazom Fix - Turned-in Task Sync",
+    "zz xrRazom Fix - Taskboard Peer Details",
+    "zz xrRazom Fix - Quest Vars Sync",
+    "zz xrRazom Fix - Fetch Reward",
+    "zz Workshop Ammo Material Fix"
+  ]
+}

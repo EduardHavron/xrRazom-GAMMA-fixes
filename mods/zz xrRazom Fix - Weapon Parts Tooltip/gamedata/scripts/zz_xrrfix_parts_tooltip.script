@@ -1,0 +1,44 @@
+--[[
+  Crash fix for Momopate's Barrel Condition Effects Display under xrRazom. Install on every peer
+  (harmless on the host and in solo).
+
+  zzzz_arti_jamming_repairs iterates weapon parts with spairs(parts, sort_parts) without a
+  nil check: in the weapon tooltip (ui_item.build_desc_header), the context menus, field
+  strip and disassembly. On a peer, corpse items arrive first as local copies without a
+  server object, item_parts cannot store their parts, get_parts_con returns nil and
+  hovering the weapon crashes:
+    _g_patches.script:817: bad argument #1 to 'pairs' (table expected, got nil)
+  Fix: inside that module only, spairs treats nil as an empty table.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local function empty_iter() return nil end
+
+local function patch_parts_tooltip()
+	local m = zzzz_arti_jamming_repairs
+	if not m then
+		L("parts tooltip: Momopate's Barrel Condition Effects Display not installed, skipped")
+		return
+	end
+	if rawget(m, "__xrrfix_spairs") then return end
+	local logged = false
+	-- Global lookups inside the module resolve through its own table first.
+	m.spairs = function(t, order)
+		if t == nil then
+			if not logged then
+				logged = true
+				L("parts tooltip: nil parts table skipped (logged once)")
+			end
+			return empty_iter
+		end
+		return spairs(t, order)
+	end
+	m.__xrrfix_spairs = true
+	L("parts tooltip: nil-safe spairs installed")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_parts_tooltip)
+	if not ok then L("install error: %s", tostring(err)) end
+end

@@ -1,0 +1,56 @@
+--[[
+  xrRazom 1.4 fix: PDA Taskboard Redesign card details on a peer. Install on every peer.
+  Split out of "zz xrRazom Fixes" (fix 2).
+
+  2. PDA Taskboard Redesign builds its cards through pda_taskboard.captured_legacy_details,
+     not the legacy get_details that xrr_patch_pda_taskboard wraps, so on a peer the
+     host-captured offer text is never shown (cards show only the title).
+     Fix: on a peer, fall back to the host capture in captured_legacy_details.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+-- 2. PDA Taskboard Redesign card details on a peer --------------------------------
+
+-- Redesign keeps captured_legacy_details as a file local (forward-declared at the
+-- top of pda_taskboard.script), so the hook point is the public get_task_card the
+-- UI calls through its backend table.
+local function patch_taskboard()
+	local tb = pda_taskboard
+	if not (tb and type(tb.get_task_card) == "function" and pda_taskboard_utils
+		and pda_taskboard_utils.split_legacy_details) then
+		L("taskboard: get_task_card absent (not the Redesign), skipped")
+		return
+	end
+	local orig = tb.get_task_card
+	local logged = {}
+	tb.get_task_card = function(task_info)
+		local card = orig(task_info)
+		if not (card and task_info and XrrIsConnected and XrrIsConnected()) then
+			return card
+		end
+		local has_local = (card.subtitle and card.subtitle ~= "") or (card.body and card.body ~= "")
+		local tid = task_info.task_id
+		local m = (not has_local) and xrr_peer_task_offer_preview and xrr_peer_task_offer_preview(tid)
+		if tid and not logged[tid] then
+			logged[tid] = true
+			local raw = _G.xrr_task_offer_msgs and _G.xrr_task_offer_msgs[tid]
+			L("taskboard: task=%s local_details=%s host_msg=%s preview_text=%s",
+				tostring(tid), tostring(has_local and true or false), tostring(raw ~= nil),
+				m and tostring(m.text ~= nil and m.text ~= "") or "nil")
+		end
+		if m and m.text and m.text ~= "" then
+			local sub, body = pda_taskboard_utils.split_legacy_details(m.text)
+			card.subtitle = sub
+			card.body = body
+			if m.icon and m.icon ~= "" then card.icon = m.icon end
+		end
+		return card
+	end
+	L("taskboard: get_task_card patched for peers")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_taskboard)
+	if not ok then L("install error: %s", tostring(err)) end
+end

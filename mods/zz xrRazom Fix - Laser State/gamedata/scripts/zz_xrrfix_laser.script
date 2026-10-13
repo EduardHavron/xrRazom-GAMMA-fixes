@@ -1,0 +1,29 @@
+--[[
+  xrRazom 1.4 fix: Laser Settings on/off state for a peer's weapons. Install on every peer.
+  Split out of "zz xrRazom Fixes" (fix 5).
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+-- 5. laser on/off for a peer's weapons --------------------------------------------
+-- Laser Settings keeps on/off in m_data.saved_lasers_id[weapon_id]. A peer's m_data
+-- is rebuilt from the host at every join, and this key is not one of xrRazom's
+-- per-item riders, so the peer's lasers come back off. Declare it as a rider.
+
+local function patch_laser()
+	if not zzz_bas_laser_control then
+		L("laser: Laser Settings not installed, skipped")
+		return
+	end
+	if not (xrr_item_mdata and xrr_item_mdata.declare) then
+		L("laser: xrr_item_mdata.declare missing, skipped")
+		return
+	end
+	xrr_item_mdata.declare("saved_lasers_id")
+	L("laser: saved_lasers_id declared as per-item rider")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_laser)
+	if not ok then L("install error: %s", tostring(err)) end
+end

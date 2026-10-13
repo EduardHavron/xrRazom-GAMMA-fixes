@@ -1,0 +1,155 @@
+--[[
+  xrRazom 1.4 fix: fetch task reward. Install on the host (peers: harmless).
+  Split out of "zz xrRazom Fixes" (fix 4).
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+-- 4. fetch reward (pelts, parts...) ------------------------------------------------
+-- xrr_quest_reward.calc_fetch_money pays cost * count * mult, ignoring what the
+-- active fetch_reward_and_remove (Tasks QoL Pack) does: condition squared, the 1/uses
+-- divisor and the 0.4-0.6 artefact factor (pelts are artefact-class in GAMMA).
+-- That overpays ~5-20x, and when the host turns the items in himself he is paid twice
+-- (vanilla on_complete + the xrRazom host credit).
+-- Fix: the holder's real value, read on the host. calc_fetch_money runs before the
+-- party consume, so a peer's items are still in its avatar's real inventory there.
+-- (v1 had peers publish quotes through peer vars: one var per task hit the PeerVar cap,
+-- and Autocomplete Tasks turns in on accept, before the 2 s publish.)
+
+local function fetch_info(task_id)
+	local raw = task_manager.task_ini and task_manager.task_ini:r_string_ex(task_id, "on_complete")
+	if not raw then return nil end
+	local var, mult = raw:match("fetch_reward_and_remove%(([^:%)]+):?([%d%.]*)")
+	if not var then return nil end
+	local sec = utils_data.load_var(db.actor, var)
+	if not (sec and type(sec) == "string" and ini_sys:section_exist(sec)) then return nil end
+	return {
+		sec = sec,
+		count = utils_data.load_var(db.actor, var .. "_count") or 1,
+		mult = tonumber(mult) or 1,
+	}
+end
+
+local function item_con(obj, use_con)
+	if not use_con then return 1 end
+	local ok, wt = pcall(function() return obj:get_weapon_type() end)
+	if ok and wt and wt ~= 255 then
+		local parts = se_load_var(obj:id(), obj:name(), "parts")
+		local n, sum = 0, 0
+		for k, v in pairs(parts or {}) do
+			if string.find(k, "prt_w_") then n = n + 1; sum = sum + v end
+		end
+		if n > 0 then return (sum / n) / 100 end
+	end
+	return obj:condition()
+end
+
+local function eco_factor()
+	local eco = game_difficulties.get_eco_factor("type") or 0.5
+	return (eco == 3 and 0.4) or (eco == 2 and 0.5) or 0.6
+end
+
+-- Same formula as tasks_fetch.fetch_reward_and_remove, without the +-10% roll.
+-- nil when this owner does not hold enough.
+local function inventory_value(fi, owner)
+	local sec = fi.sec
+	local max_use = IsItem("multiuse", sec) or 1
+	local cost = (ini_sys:r_float_ex(sec, "cost") or 0) * (1 / max_use)
+	local use_con = (max_use == 1) and (not IsItem("device", sec)) and (not IsItem("battery", sec))
+	local belt = {}
+	pcall(function() owner:iterate_belt(function(_, a) belt[a:id()] = true end) end)
+	local total, left, last = 0, fi.count, nil
+	owner:iterate_inventory(function(_, obj)
+		if left > 0 and obj:section() == sec and not belt[obj:id()] then
+			local cnt = (max_use > 1) and obj:get_remaining_uses() or 1
+			local con = item_con(obj, use_con)
+			total = total + cost * cnt * con * con * fi.mult
+			left = left - cnt
+			last = obj
+		end
+	end, owner)
+	if left > 0 or not last then return nil end
+	if total < 50 then total = 50 end
+	if IsArtefact(last) then total = total * eco_factor() end
+	return total
+end
+
+-- Full-condition value: used only when no holder is reachable (avatar offline).
+local function nominal_value(fi)
+	local sec = fi.sec
+	local total = (ini_sys:r_float_ex(sec, "cost") or 0) * fi.count * fi.mult
+	if (ini_sys:r_string_ex(sec, "class") or ""):find("^ART") then
+		total = total * eco_factor()
+	end
+	return math.max(total, 50)
+end
+
+local function roll(v)
+	local d = math.floor(v * 0.1)
+	return math.random(math.floor(v - d), math.floor(v + d))
+end
+
+-- Best value among the peers' avatars that hold enough.
+local function peer_value(fi)
+	local players = XrrPlayers and XrrPlayers()
+	if not players then return nil end
+	local best, who
+	for i = 1, players:GetPeerCount() do
+		local cid = players:GetPeerLocalIdAt(i)
+		local avatar = cid and cid > 0 and cid ~= 65535 and level.object_by_id(cid)
+		if avatar then
+			local ok, v = pcall(inventory_value, fi, avatar)
+			if ok and v and (not best or v > best) then
+				best, who = v, players:GetPeerNicknameAt(i)
+			end
+		end
+	end
+	return best, who
+end
+
+local function patch_fetch_reward()
+	local m = xrr_quest_reward
+	if not (m and m.calc_fetch_money) then
+		L("fetch: xrr_quest_reward.calc_fetch_money missing, skipped")
+		return
+	end
+	local orig = m.calc_fetch_money
+	local calls = {}
+	m.calc_fetch_money = function(task_id)
+		local ok, fi = pcall(fetch_info, task_id)
+		if not (ok and fi) then return orig(task_id) end
+
+		-- task_callback calls this twice in one frame: peers' share, then host credit.
+		local tg = time_global()
+		local c = calls[task_id]
+		if c and c.tg == tg then c.n = c.n + 1 else c = { tg = tg, n = 1 }; calls[task_id] = c end
+
+		local okh, host_val = pcall(inventory_value, fi, db.actor)
+		if okh and host_val then
+			if c.n >= 2 then
+				L("fetch: %s turned in by host, vanilla already paid him -> host credit 0", task_id)
+				return 0
+			end
+			local v = roll(host_val)
+			L("fetch: %s host items %s x%s -> %s", task_id, fi.sec, fi.count, v)
+			return v
+		end
+		local okp, pv, who = pcall(peer_value, fi)
+		if okp and pv then
+			local v = roll(pv)
+			L("fetch: %s items of %s %s x%s -> %s (call %s)", task_id, tostring(who), fi.sec, fi.count, v, c.n)
+			return v
+		end
+		local okn, nv = pcall(nominal_value, fi)
+		if not (okn and nv) then return orig(task_id) end
+		local v = roll(nv)
+		L("fetch: %s no holder reachable, nominal %s x%s -> %s", task_id, fi.sec, fi.count, v)
+		return v
+	end
+	L("fetch: calc_fetch_money patched (host reads peer avatars)")
+end
+
+function on_game_start()
+	local ok, err = pcall(patch_fetch_reward)
+	if not ok then L("install error: %s", tostring(err)) end
+end
