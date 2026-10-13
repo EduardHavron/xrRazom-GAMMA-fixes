@@ -54,3 +54,27 @@ jobs:
             --title "xrRazom fixes $VERSION" \
             --notes-file dist/notes.md \
             --latest
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          JOB_STATUS: ${{ job.status }}
+          VERSION: ${{ steps.build.outputs.version }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then echo "DISCORD_WEBHOOK secret not set, skipping"; exit 0; fi
+          if [ "$JOB_STATUS" = "success" ]; then
+            MODS=$(python3 -c "import json;print('\n'.join('• '+m for m in json.load(open('pack/pack.json',encoding='utf-8-sig'))['mods']))")
+            PAYLOAD=$(jq -n --arg t "Фиксы xrRazom $VERSION" --arg u "$REPO_URL/releases/tag/v$VERSION" \
+              --arg d "$(printf '%s\n\n**Состав:**\n%s\n\nАгент у пира поставит обновление в течение 10 минут (при закрытом MO2).' "${COMMIT_MSG%%$'\n'*}" "$MODS")" \
+              --arg a "$ACTOR" \
+              '{username:"xrRazom fixes", embeds:[{title:$t, url:$u, description:$d, color:5763719, footer:{text:("опубликовал "+$a)}}]}')
+          else
+            PAYLOAD=$(jq -n --arg u "$RUN_URL" --arg d "$(printf 'Коммит: %s\nРелиз не создан, пир остаётся на прошлой версии.' "${COMMIT_MSG%%$'\n'*}")" \
+              '{username:"xrRazom fixes", embeds:[{title:"Сборка фиксов упала", url:$u, description:$d, color:15548997}]}')
+          fi
+          curl -fsS -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK" && echo "Discord notified" || echo "::warning::Discord notification failed"
