@@ -67,6 +67,7 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           if [ -z "$DISCORD_WEBHOOK" ]; then echo "DISCORD_WEBHOOK secret not set, skipping"; exit 0; fi
+          [ -n "$COMMIT_MSG" ] || COMMIT_MSG="Ручная сборка"
           if [ "$JOB_STATUS" = "success" ]; then
             MODS=$(python3 -c "import json;print('\n'.join('• '+m for m in json.load(open('pack/pack.json',encoding='utf-8-sig'))['mods']))")
             PAYLOAD=$(jq -n --arg t "Фиксы xrRazom $VERSION" --arg u "$REPO_URL/releases/tag/v$VERSION" \
