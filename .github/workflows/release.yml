@@ -1,0 +1,56 @@
+name: Build & release xrRazom fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mods/**'
+      - 'pack/**'
+      - 'installer/**'
+      - '.github/workflows/release.yml'
+      - '.github/scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: xrrfix-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install LuaJIT / xmllint
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq luajit libxml2-utils
+          luajit -v
+
+      - name: Validate (pack.json, Lua syntax, XML warnings)
+        run: python3 .github/scripts/build_pack.py validate --repo .
+
+      - name: Build zip
+        id: build
+        run: |
+          VERSION="$(date -u +%Y.%m.%d)-${{ github.run_number }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/build_pack.py build --repo . --version "$VERSION" --out dist
+          echo '--- pack.txt ---'; cat dist/pack.txt
+          echo '--- notes.md ---'; cat dist/notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.build.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/xrRazom_fixes.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "xrRazom fixes $VERSION" \
+            --notes-file dist/notes.md \
+            --latest
