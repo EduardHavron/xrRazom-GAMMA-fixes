@@ -1,0 +1,94 @@
+--[[
+  xrRazom 1.4 fix: Milspec PDA / Kill Tracker marks on a peer. Install on every peer
+  (harmless on the host and in solo).
+
+  On a level load or transition a peer receives the host's corpses as mirrors: the NPC
+  is spawned and killed locally, and npc_on_death_callback arrives with the peer's own
+  actor as the killer. ish_kill_tracker.new_kill then records every corpse on the map
+  as the player's kill.
+  Fix: on a peer, a death is the actor's kill only when the actor really hit that victim
+  shortly before (hit callbacks are echoed by the host) or it came as a silent kill.
+  Anything else is not recorded at all.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local HIT_WINDOW_MS = 60000
+local last_hit = {}        -- victim id -> time_global() of the actor's last hit
+local in_silent = false
+local skipped = 0
+
+local function is_peer()
+	return XrrIsClient and XrrIsClient() or false
+end
+
+local function note_hit(victim, who)
+	if victim and who and db.actor and who:id() == db.actor:id() then
+		last_hit[victim:id()] = time_global()
+	end
+end
+
+local function on_hit(victim, amount, dir, who) note_hit(victim, who) end
+local function on_before_hit(victim, shit) note_hit(victim, shit and shit.draftsman) end
+
+local function patch_kill_tracker()
+	local m = ish_kill_tracker
+	if not (m and type(m.new_kill) == "function") then
+		L("killtracker: Milspec PDA Kill Tracker not installed, skipped")
+		return
+	end
+	if rawget(m, "__xrrfix_wrapped") then return end
+	m.__xrrfix_wrapped = true
+
+	local orig_kill = m.new_kill
+	local function new_kill(victim, killer, ...)
+		if is_peer() and victim and killer and db.actor and killer:id() == db.actor:id() and not in_silent then
+			local t = last_hit[victim:id()]
+			if not (t and time_global() - t <= HIT_WINDOW_MS) then
+				-- mirror corpse: never hit by this player
+				skipped = skipped + 1
+				if skipped <= 5 then
+					L("killtracker: %s (%s) died without a hit from this player -> not his kill",
+						victim:name(), victim:id())
+				end
+				return
+			end
+		end
+		if victim then last_hit[victim:id()] = nil end
+		return orig_kill(victim, killer, ...)
+	end
+
+	local orig_silent = m.new_silent_kill
+	local function new_silent_kill(...)
+		in_silent = true
+		local ok, err = pcall(orig_silent, ...)
+		in_silent = false
+		if not ok then error(err, 0) end
+	end
+
+	-- Module fields: new_silent_kill calls new_kill through them, and an on_game_start
+	-- that has not run yet registers these. The registry keys on the function VALUE, so
+	-- an already registered original is swapped as well.
+	m.new_kill = new_kill
+	for _, cb in ipairs({ "npc_on_death_callback", "monster_on_death_callback" }) do
+		UnregisterScriptCallback(cb, orig_kill)
+		RegisterScriptCallback(cb, new_kill)
+	end
+	if type(orig_silent) == "function" then
+		m.new_silent_kill = new_silent_kill
+		if AddScriptCallback and stealth_kill_detection then
+			UnregisterScriptCallback("npc_on_silent_kill_callback", orig_silent)
+			RegisterScriptCallback("npc_on_silent_kill_callback", new_silent_kill)
+		end
+	end
+	L("killtracker: mirror corpse guard installed")
+end
+
+function on_game_start()
+	RegisterScriptCallback("npc_on_hit_callback", on_hit)
+	RegisterScriptCallback("monster_on_hit_callback", on_hit)
+	RegisterScriptCallback("npc_on_before_hit", on_before_hit)
+	RegisterScriptCallback("monster_on_before_hit", on_before_hit)
+	local ok, err = pcall(patch_kill_tracker)
+	if not ok then L("install error: %s", tostring(err)) end
+end
