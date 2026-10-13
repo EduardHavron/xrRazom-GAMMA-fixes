@@ -235,7 +235,7 @@ try {
             Start-Sleep -Seconds 3
             $raw = & $gh run list --limit 5 --json databaseId,url,status,headSha 2>$null
             if ($LASTEXITCODE -eq 0 -and $raw) {
-                $list = @(($raw -join "`n") | ConvertFrom-Json)
+                $list = @(($raw -join "`n") | ConvertFrom-Json | ForEach-Object { $_ })  # PS 5.1 emits the array as one object
                 $run = $list | Where-Object { $_.headSha -eq $sha } | Select-Object -First 1
             }
         }
