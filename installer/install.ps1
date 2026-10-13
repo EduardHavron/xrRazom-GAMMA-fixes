@@ -2,12 +2,21 @@
 # Меняется только секция-разделитель пакета (по умолчанию "xrRazom Sync") в активном профиле:
 # моды вне секции не трогаются, кроме случая, когда мод из пакета включён где-то ещё.
 # Запускать через install.bat из распакованного архива.
-param([switch]$NoWait)
+# -GammaRoot <папка>  без поиска GAMMA (сохранённый путь не меняется); -Profile <имя>  вместо активного профиля.
+# XRRFIX_BLOCK_PROCS (env): процессы через запятую, при которых установка ждёт/откладывается (по умолчанию ModOrganizer).
+param(
+    [switch]$NoWait,
+    [string]$GammaRoot = '',
+    [Alias('Profile')][string]$ProfileName = ''
+)
 $ErrorActionPreference = 'Stop'
 $pack = $PSScriptRoot
 $saved = Join-Path $env:LOCALAPPDATA 'xrrfix\gamma_root.txt'
 $MARKER = 'xrrfix_pack.txt'
 $LEGACY = @('zz xrRazom Fixes')   # старый общий мод: выключается, если его нет в пакете
+$BlockProcs = @('ModOrganizer')
+if ($env:XRRFIX_BLOCK_PROCS) { $BlockProcs = @($env:XRRFIX_BLOCK_PROCS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+function Test-Blocking { foreach ($n in $BlockProcs) { if (Get-Process -Name $n -ErrorAction SilentlyContinue) { return $true } }; return $false }
 
 function Test-Root($p) { $p -and (Test-Path (Join-Path $p 'ModOrganizer.exe')) -and (Test-Path (Join-Path $p 'mods')) }
 
@@ -34,14 +43,19 @@ function Find-Root {
     throw 'Папка GAMMA не выбрана'
 }
 
-$root = Find-Root
-New-Item -ItemType Directory (Split-Path $saved) -Force | Out-Null
-Set-Content $saved $root -Encoding UTF8
+if ($GammaRoot) {
+    $root = [IO.Path]::GetFullPath($GammaRoot).TrimEnd('\')
+    if (-not (Test-Root $root)) { throw "В '$root' нет ModOrganizer.exe и папки mods" }
+} else {
+    $root = Find-Root
+    New-Item -ItemType Directory (Split-Path $saved) -Force | Out-Null
+    Set-Content $saved $root -Encoding UTF8
+}
 Write-Host "GAMMA: $root"
 
-if (Get-Process ModOrganizer -ErrorAction SilentlyContinue) {
+if (Test-Blocking) {
     if ($NoWait) { Write-Host 'Mod Organizer запущен - установка отложена.'; exit 2 }
-    while (Get-Process ModOrganizer -ErrorAction SilentlyContinue) {
+    while (Test-Blocking) {
         Write-Host 'Закройте Mod Organizer (и игру), затем нажмите Enter...' -ForegroundColor Yellow
         [void](Read-Host)
     }
@@ -73,6 +87,7 @@ if (-not (Test-Path -LiteralPath $sepDir)) {
 # 2. профиль MO2: пересобирается только секция пакета
 $ini = Get-Content (Join-Path $root 'ModOrganizer.ini') -Encoding UTF8
 $profile = ($ini | Where-Object { $_ -match '^selected_profile=' }) -replace '^selected_profile=(@ByteArray\()?', '' -replace '\)$', ''
+if ($ProfileName) { $profile = $ProfileName }
 $modlist = Join-Path $root "profiles\$profile\modlist.txt"
 if (-not (Test-Path $modlist)) {
     Write-Host "Не найден $modlist - включите моды в MO2 вручную." -ForegroundColor Yellow

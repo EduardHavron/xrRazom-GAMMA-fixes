@@ -6,6 +6,9 @@
 #   -PlainPowerShell  задача запускает powershell.exe напрямую (без conhost --headless;
 #                     тогда раз в 10 минут может мелькать окно консоли)
 # Если задана переменная XRRFIX_HOME (тест), задача в Планировщике НЕ регистрируется.
+# Режим хоста: если setup запущен из git-клона репозитория (или клон лежит в папке GAMMA / рядом с ней),
+# путь к клону сохраняется в repo_root.txt и агент синхронизирует через host\publish.ps1 -SyncOnly.
+# XRRFIX_REPO=<путь> - задать клон явно; XRRFIX_REPO=none - всегда обычный режим.
 param([switch]$DryRun, [string]$GammaRoot, [switch]$NoRun, [switch]$Shortcut, [switch]$NoShortcut, [switch]$PlainPowerShell)
 
 $ErrorActionPreference = 'Stop'
@@ -17,6 +20,8 @@ $TestMode = [bool]$env:XRRFIX_HOME -and ($Base.TrimEnd('\') -ne $RealBase.TrimEn
 $AgentDir = Join-Path $Base 'agent'
 $AgentPs1 = Join-Path $AgentDir 'xrrfix_agent.ps1'
 $RootFile = Join-Path $Base 'gamma_root.txt'
+$RepoFile = Join-Path $Base 'repo_root.txt'
+$RepoMarker = 'EduardHavron/xrRazom-GAMMA-fixes'
 $Src = $PSScriptRoot
 $Files = 'xrrfix_agent.ps1', 'setup_agent.ps1', 'setup_agent.bat', 'uninstall_agent.ps1', 'uninstall_agent.bat', 'README.txt'
 $ShortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Обновить фиксы xrRazom.lnk'
@@ -56,6 +61,58 @@ function Pick-Root {
     while ($dlg.ShowDialog() -eq 'OK') {
         if (Test-Root $dlg.SelectedPath) { return $dlg.SelectedPath }
         [System.Windows.Forms.MessageBox]::Show('В этой папке нет ModOrganizer.exe и папки mods.') | Out-Null
+    }
+    return $null
+}
+
+function Test-RepoFiles([string]$p) {
+    if (-not $p) { return $false }
+    try {
+        return ((Test-Path -LiteralPath (Join-Path $p '.git')) -and
+                (Test-Path -LiteralPath (Join-Path $p 'host\publish.ps1') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $p 'agent\xrrfix_agent.ps1') -PathType Leaf))
+    } catch { return $false }
+}
+
+function Get-OriginUrl([string]$git, [string]$p) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $git
+    $psi.Arguments = "-C `"$($p.TrimEnd('\'))`" remote get-url origin"
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $pr = [System.Diagnostics.Process]::Start($psi)
+    $o = $pr.StandardOutput.ReadToEndAsync(); $e = $pr.StandardError.ReadToEndAsync()
+    if (-not $pr.WaitForExit(30000)) { try { $pr.Kill() } catch { }; return '' }
+    $pr.WaitForExit()
+    if ($pr.ExitCode -ne 0) { return '' }
+    return $o.Result.Trim()
+}
+
+# Поиск клона репозитория: XRRFIX_REPO, папка над setup_agent, repo_root.txt, папки в GAMMA и рядом с ней.
+function Find-Repo([string]$root) {
+    $forced = [string]$env:XRRFIX_REPO
+    if ($forced -eq 'none') { return $null }
+    $cands = New-Object System.Collections.Generic.List[string]
+    if ($forced) { $cands.Add($forced) }
+    else {
+        $cands.Add((Split-Path $Src -Parent))
+        if (Test-Path $RepoFile) { $c = ([string](Get-Content $RepoFile -Encoding UTF8 -TotalCount 1)).Trim(); if ($c) { $cands.Add($c) } }
+        if ($root) {
+            foreach ($d in @($root, (Split-Path $root -Parent))) {
+                if ($d -and (Test-Path -LiteralPath $d)) { Get-ChildItem -LiteralPath $d -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object { $cands.Add($_.FullName) } }
+            }
+        }
+    }
+    $fs = @($cands | Where-Object { Test-RepoFiles $_ } | ForEach-Object { $_.TrimEnd('\') } | Select-Object -Unique)
+    if (-not $fs.Count) { if ($forced) { Say "XRRFIX_REPO='$forced' - это не клон репозитория." 'Yellow' }; return $null }
+    $gc = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $gc) { Say "Найден клон $($fs[0]), но git не найден в PATH - режим хоста недоступен." 'Yellow'; return $null }
+    foreach ($c in $fs) {
+        $u = Get-OriginUrl $gc.Source $c
+        if ($u -like "*$RepoMarker*") { return (Resolve-Path -LiteralPath $c).Path.TrimEnd('\') }
+        Say "  $c - origin '$u' не $RepoMarker, пропуск." 'DarkGray'
     }
     return $null
 }
@@ -102,6 +159,26 @@ else {
     Set-Content $RootFile $root -Encoding UTF8
     Remove-Item (Join-Path $Base 'failed_version.txt') -Force -ErrorAction SilentlyContinue   # новая попытка сразу
     Say "GAMMA: $root (сохранено в $RootFile)"
+}
+
+# 2b. режим: хост (есть клон репозитория) или обычный
+$repo = Find-Repo $root
+if ($repo) {
+    Say "Режим: ХОСТ - клон репозитория $repo" 'Green'
+    Say '  агент будет запускать host\publish.ps1 -SyncOnly (подтягивать чужие публикации в ваш MO2)'
+    Say '  и обновлять себя из папки agent\ клона.'
+    if ($DryRun) { Say "Записал бы '$repo' в $RepoFile" }
+    else {
+        New-Item -ItemType Directory $Base -Force | Out-Null
+        Set-Content $RepoFile $repo -Encoding UTF8
+        Remove-Item (Join-Path $Base 'host_state.txt') -Force -ErrorAction SilentlyContinue
+    }
+} else {
+    Say 'Режим: обычный - установка релизов с GitHub.' 'Green'
+    if (Test-Path $RepoFile) {
+        if ($DryRun) { Say "Удалил бы устаревший $RepoFile" }
+        else { Remove-Item $RepoFile -Force }
+    }
 }
 
 # 3. задача Планировщика

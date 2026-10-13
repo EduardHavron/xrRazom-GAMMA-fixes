@@ -232,6 +232,13 @@ def build(repo, version, out_dir):
             z.write(os.path.join(repo, "installer", f), f)
         for arc, src in entries:
             z.write(src, arc)
+        # peer agent files: the agent updates itself from the release
+        agent_dir = os.path.join(repo, "agent")
+        if os.path.isdir(agent_dir):
+            for f in sorted(os.listdir(agent_dir)):
+                fp = os.path.join(agent_dir, f)
+                if os.path.isfile(fp):
+                    z.write(fp, "agent/" + f)
 
     # Release notes
     msg = ""

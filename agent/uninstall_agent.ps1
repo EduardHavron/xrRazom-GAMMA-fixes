@@ -30,7 +30,7 @@ if (-not $RemoveFiles -and -not $KeepFiles -and -not $DryRun) {
     $a = (Read-Host "Удалить файлы агента ($Base\agent, журнал, загрузки)? Моды останутся. [д/Н]").Trim().ToLower()
     $del = $a -in 'y', 'yes', 'д', 'да', 'l'
 }
-$targets = @('agent', 'dl', 'agent.log', 'failed_version.txt', 'api_etag.txt', 'api_latest.json') | ForEach-Object { Join-Path $Base $_ }
+$targets = @('agent', 'dl', 'agent.log', 'failed_version.txt', 'api_etag.txt', 'api_latest.json', 'repo_root.txt', 'mode.txt', 'host_state.txt', 'sync_last.log') | ForEach-Object { Join-Path $Base $_ }
 if ($DryRun) { Write-Host "[DryRun] при удалении файлов: $($targets -join ', ') (gamma_root.txt и installed_version.txt остаются)" -ForegroundColor Yellow }
 elseif ($del) {
     foreach ($p in $targets) { if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue } }
