@@ -413,7 +413,7 @@ Test-Case 'PUB-033 interactive confirmation (y/N) from stdin' {
     Assert-Out $r 'не публикуется (новый, не подтверждён): modN'
     $r = Invoke-Publish $sb 'H' @('-Message', 'm2') -Stdin "y`r`n"
     Assert-Code 0 $r '"y" = yes'
-    Assert-Equal 'N1' (Get-OriginMod $sb 'modN')
+    Assert-Equal 'N1' (Get-OriginMod $sb 'modN') ("publish output:`n" + $r.All)
 }
 
 Test-Case 'PUB-034 SYS-013 commit contains only local mods (no meta.ini/marker) and mods/, pack/ paths' {
