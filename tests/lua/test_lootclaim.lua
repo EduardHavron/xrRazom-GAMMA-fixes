@@ -1,7 +1,9 @@
 -- MOD-LOOTCLAIM: grok_loot_claim.script (specs/fixes/mod-lootclaim.md)
 local H = ...
 
-local MOD = "Combined GAMMA NPC Loot Claim v.1.2"
+-- the mod folder carries the version in its name: take it from pack/pack.json
+local MOD = H.read_file(H.root .. "/pack/pack.json"):match('"(Combined GAMMA NPC Loot Claim[^"]*)"')
+assert(MOD, "Combined GAMMA NPC Loot Claim not listed in pack/pack.json")
 
 -- position stub: points on the X axis, distance = |dx|
 local function pos(x)

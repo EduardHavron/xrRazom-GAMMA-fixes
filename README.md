@@ -76,7 +76,7 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 
 | Мод | Что это |
 |---|---|
-| Combined GAMMA NPC Loot Claim v.1.2 | «право на лут» с настройкой через MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира в коопе считаются убийствами игрока. Скрипты базового NPC Loot Claim (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками (см. заголовок `grok_loot_claim.script`). Спецификации пока нет |
+| Combined GAMMA NPC Loot Claim v.1.2.1 | «право на лут» с настройкой через MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира в коопе считаются убийствами игрока. Скрипты базового NPC Loot Claim (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками Описание автора — `SDD.md` в папке мода, требования и тесты — [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
 ## Для разработки
 

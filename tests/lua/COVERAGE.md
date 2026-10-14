@@ -52,7 +52,7 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-KILLTR-005 | FX-KILLTR-005 (a) mod registered first; (b) mod registers after the fix | test_killtr.lua |
 | FX-KILLTR-006, -007 | manual | |
 
-### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim v.1.2) — test_lootclaim.lua
+### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim, folder name read from pack.json) — test_lootclaim.lua
 
 | Requirement | Test case(s) |
 |---|---|
