@@ -1,0 +1,424 @@
+-- Loot Claim v1.2.0 (G.A.M.M.A. 0.9.5), configurable through MCM ("grok_loot_claim")
+--  * Kills by the player / companions / co-op peer : only the player may loot, NPCs are locked out
+--  * Kills by other NPCs                           : player may NOT loot, NPCs may (vanilla NPC looting)
+-- Keep npc_loot_claim.script and zz_npc_loot_claim_softcore.script from the base mod as the empty stubs.
+-- Options live in grok_loot_claim_mcm.script; without MCM the DEFAULTS below are used.
+
+local DEFAULTS = {
+	enabled               = true,   -- master switch, false = everybody may loot everything
+	player_loot_all       = false,  -- true: player may loot everything (NPC kills are not claimed)
+	npc_loot_all          = false,  -- true: NPCs may loot everything (player kills are not locked)
+	claim_mutants         = true,   -- mutants killed by NPCs are claimed too
+	release_killer_dead   = true,   -- NPC kill is lootable once its killer is dead
+	release_killer_far    = true,   -- NPC kill is lootable while its killer is farther than far_distance (or not loaded)
+	far_distance          = 35,     -- metres, killer-to-player distance for release_killer_far
+	release_after_loot    = true,   -- body becomes lootable for all once it was looted (by NPC or by the player)
+	release_delay         = 10,     -- seconds after the player opens his own kill before NPCs may loot it
+	show_messages         = true,   -- warning tip / message when the player is blocked
+	companions_are_player = true,   -- companion kills count as player kills (false = free for everybody)
+	block_autolooter      = true,   -- also block z_auto_looter (its own key and proximity looting)
+	debug                 = false,  -- verbose log lines "[grok_loot_claim]"
+}
+
+local MSG_DISTANCE    = 25      -- max distance for the "killer NPC" warning tip
+local LOCK_INTERVAL   = 1000    -- ms, how often the NPC lock on player kills is re-applied
+local STATS_INTERVAL  = 120000  -- ms, debug stats line
+local MAX_TRACKED     = 1000    -- cap of remembered bodies per table (oldest dropped first)
+local LOCK_VALUE      = 0       -- actor id; never equals an NPC id, so NPCs skip the body
+
+local function cfg(key)
+	if ui_mcm then
+		local v = ui_mcm.get("grok_loot_claim/" .. key)
+		if v ~= nil then return v end
+	end
+	return DEFAULTS[key]
+end
+
+local function dlog(fmt, ...)
+	if not cfg("debug") then return end
+	local ok, msg = pcall(string.format, fmt, ...)
+	printf("[grok_loot_claim] %s", ok and msg or ("LOG FORMAT ERROR: " .. tostring(fmt)))
+end
+
+local claimed      = {} -- victim_id -> killer_id  (killed by NPC, player blocked)
+local player_kills = {} -- victim_id -> true       (killed by player/companion, NPCs blocked)
+local pending      = {} -- victim_id -> time_global() when a player kill becomes free for NPCs
+
+local stats = { deaths = 0, player_kills = 0, claimed = 0, free = 0, blocked = 0, allowed = 0, npc_looted_claimed = 0, npc_looted_player_kill = 0 }
+local npc_logged = {}    -- corpse ids already logged for NPC looting (debug)
+local locked_logged = {} -- corpse ids already logged as locked (debug)
+
+local function count(t)
+	local n = 0
+	for _ in pairs(t) do n = n + 1 end
+	return n
+end
+
+-- insertion order: when a table overflows only the OLDEST entries are dropped (never all of them)
+local seq_counter = 0
+local claimed_seq = {}
+local player_seq = {}
+
+local function track(t, seq, id, val)
+	seq_counter = seq_counter + 1
+	t[id] = val
+	seq[id] = seq_counter
+	if count(t) <= MAX_TRACKED then return end
+	local arr = {}
+	for k in pairs(t) do arr[#arr + 1] = { k, seq[k] or 0 } end
+	table.sort(arr, function(a, b) return a[2] < b[2] end)
+	local drop = math.floor(MAX_TRACKED * 0.1)
+	for i = 1, drop do
+		t[arr[i][1]] = nil
+	end
+	for k in pairs(seq) do
+		if t[k] == nil then seq[k] = nil end
+	end
+end
+
+-- xrRazom co-op: a peer's avatar on the host is a "player dummy" object, not db.actor
+local function is_peer_avatar(obj)
+	local players = rawget(_G, "XrrPlayers")
+	if not players then return false end
+	local ok, res = pcall(function() return players():IsPlayerDummy(obj:id()) end)
+	return (ok and res) and true or false
+end
+
+local function is_companion(obj)
+	return obj:has_info("npcx_is_companion") and true or false
+end
+
+local function is_player_side(killer)
+	if not killer then return false end
+	if db.actor and killer:id() == db.actor:id() then return true end
+	if is_peer_avatar(killer) then return true end
+	return cfg("companions_are_player") and is_companion(killer)
+end
+
+-- NPC corpse detection (xr_corpse_detection) only picks bodies that have
+-- HasValuableLoot set and corpse_already_selected == nil; we clear the first and fill the second
+local function lock_body(id)
+	xr_corpse_detection.set_valuable_loot(id, nil) -- vanilla: body no longer counts as having loot
+	local st = db.storage[id]
+	if st and st.corpse_already_selected ~= LOCK_VALUE then
+		if not locked_logged[id] then
+			dlog("LOCK applied id=%s previous corpse_already_selected=%s", tostring(id), tostring(st.corpse_already_selected))
+			locked_logged[id] = true
+		end
+		st.corpse_already_selected = LOCK_VALUE
+	elseif not st and not locked_logged[id] then
+		dlog("LOCK id=%s: db.storage entry is nil (only HasValuableLoot cleared)", tostring(id))
+		locked_logged[id] = true
+	end
+end
+
+local function release_player_body(id)
+	dlog("RELEASE player kill id=%s now lootable by NPCs", tostring(id))
+	locked_logged[id] = nil
+	player_kills[id] = nil
+	pending[id] = nil
+	local st = db.storage[id]
+	if st then st.corpse_already_selected = nil end
+	xr_corpse_detection.set_valuable_loot(id, true)
+end
+
+-- an NPC took items from a body: NPC kill becomes free for the player
+function npc_on_get_all_from_corpse(npc, corpse, item, valuable)
+	if not corpse then return end
+	local cid = corpse:id()
+	if not npc_logged[cid] then
+		npc_logged[cid] = true
+		local was_claimed = claimed[cid] ~= nil
+		local was_player_kill = player_kills[cid] ~= nil
+		if was_player_kill then stats.npc_looted_player_kill = stats.npc_looted_player_kill + 1 end
+		if was_claimed then stats.npc_looted_claimed = stats.npc_looted_claimed + 1 end
+		dlog("NPC LOOT npc=%s corpse=%s was_claimed=%s was_player_kill=%s%s", npc and npc:name() or "nil", corpse:name(), tostring(was_claimed), tostring(was_player_kill), was_player_kill and "  <-- LOCK FAILED" or "")
+	end
+	if cfg("release_after_loot") then
+		claimed[cid] = nil
+	end
+end
+
+function npc_on_death_callback(victim, killer)
+	if not (victim and db.actor) then
+		dlog("DEATH callback skipped: victim=%s db.actor=%s", tostring(victim ~= nil), tostring(db.actor ~= nil))
+		return
+	end
+	local v_id = victim:id()
+	local k_id = killer and killer:id()
+
+	-- Semenov quest: mutant tissue counter (player kills only, as in the original); independent of the options
+	if k_id == db.actor:id() and IsMonster(victim) then
+		if get_story_object("yan_ecolog_semenov") then
+			local need = load_var(db.actor, "yan_ecolog_semenov_task_1_tissue_need") or 0
+			if need > 0 then
+				local cnt = load_var(db.actor, "yan_ecolog_semenov_task_1_tissue_count") or 0
+				save_var(db.actor, "yan_ecolog_semenov_task_1_tissue_count", cnt + 1)
+			end
+		end
+	end
+
+	if not cfg("enabled") then return end
+
+	stats.deaths = stats.deaths + 1
+	local victim_type = IsStalker(victim) and "stalker" or (IsMonster(victim) and "mutant" or "other")
+	local player_side = is_player_side(killer)
+	local base
+	if cfg("debug") then
+		base = string.format("DEATH victim=%s(%s) killer=%s player_side=%s", victim:name(), victim_type, killer and killer:name() or "nil", tostring(player_side))
+	end
+
+	-- player / companion kill: player loots, NPCs locked out
+	if player_side then
+		if IsStalker(victim) then
+			if cfg("npc_loot_all") then
+				dlog("%s -> player kill, NPCs allowed (npc_loot_all)", base)
+				return
+			end
+			track(player_kills, player_seq, v_id, true)
+			stats.player_kills = stats.player_kills + 1
+			dlog("%s -> PLAYER_KILL (NPCs locked out)", base)
+			lock_body(v_id)
+		else
+			dlog("%s -> player-side kill of non-stalker, nothing to lock", base)
+		end
+		return
+	end
+
+	-- free bodies: no killer (anomaly etc.), suicide, story npc, zombied killer, mutant killer, companion with the option off
+	local reason
+	if not killer or v_id == k_id then reason = "no killer / suicide"
+	elseif get_object_story_id(v_id) then reason = "story npc"
+	elseif character_community(killer) == "zombied" then reason = "killer is zombied"
+	elseif is_companion(killer) then reason = "companion kill and companions_are_player=false"
+	elseif not IsStalker(killer) then reason = "killer is not a stalker (mutant/other)"
+	elseif IsMonster(victim) and not cfg("claim_mutants") then reason = "mutant victim and claim_mutants=false" end
+	if reason then
+		stats.free = stats.free + 1
+		dlog("%s -> FREE (%s)", base, reason)
+		return
+	end
+
+	-- NPC kill: player blocked
+	track(claimed, claimed_seq, v_id, k_id)
+	stats.claimed = stats.claimed + 1
+	dlog("%s -> CLAIMED (player blocked)", base)
+end
+
+-- Is the body currently off-limits for the player? returns blocked, reason, killer_object
+local function check_claim(id)
+	if not cfg("enabled") or cfg("player_loot_all") then return false, "claims disabled" end
+	local k_id = claimed[id]
+	if not k_id then return false, "not claimed" end
+
+	local sender = level.object_by_id(k_id)
+	if cfg("release_killer_dead") and sender and not sender:alive() then
+		claimed[id] = nil
+		return false, "killer is dead", sender
+	end
+	if cfg("release_killer_far") then
+		if not sender then
+			return false, "killer is not loaded (far away)", sender
+		end
+		if sender:alive() and sender:position():distance_to(db.actor:position()) > cfg("far_distance") then
+			return false, "killer is farther than far_distance", sender
+		end
+	end
+	return true, "claimed", sender
+end
+
+-- the player opens one of his own kills: schedule the release for NPCs
+local function on_player_opens(id)
+	if player_kills[id] and not pending[id] and cfg("release_after_loot") then
+		pending[id] = time_global() + cfg("release_delay") * 1000
+		dlog("  release for NPCs scheduled in %s s (id=%s)", tostring(cfg("release_delay")), tostring(id))
+	end
+end
+
+local function show_block_message(sender)
+	if not cfg("show_messages") then return end
+	if sender and sender:alive() and IsStalker(sender)
+	and sender:position():distance_to(db.actor:position()) <= MSG_DISTANCE then
+		local com = character_community(sender)
+		local header = strformat("%s, %s", sender:character_name(), game.translate_string("st_dyn_news_comm_" .. com .. "_" .. 6))
+		local msg = game.translate_string("st_npc_loot_claim_last_" .. (round_idp(math.random() * 4) + 1))
+		dynamic_news_helper.send_tip(msg, header, 0, 10, sender:character_icon(), "danger", "npc")
+	else
+		actor_menu.set_msg(1, game.translate_string("st_npc_loot_claim_far"), 5)
+	end
+end
+
+function on_before_key_press(key, bind, dis, flags)
+	if bind ~= key_bindings.kUSE then return end
+	if not cfg("enabled") then return end
+
+	local ray = ray_pick()
+	ray:set_flags(3)
+	ray:set_range(10)
+	ray:set_position(device().cam_pos)
+	ray:set_direction(device().cam_dir)
+	ray:set_ignore_object(db.actor)
+	ray:query()
+	local result = ray:get_result()
+	if not result then return end
+
+	local obj = result.object
+	if not obj or obj:alive() then return end
+	if not (IsStalker(obj) or IsMonster(obj)) then return end
+
+	local id = obj:id()
+	local blocked, reason, sender = check_claim(id)
+	if not blocked then
+		stats.allowed = stats.allowed + 1
+		dlog("USE on %s -> ALLOWED (%s; player_kill=%s)", obj:name(), reason, tostring(player_kills[id] ~= nil))
+		on_player_opens(id)
+		return
+	end
+
+	stats.blocked = stats.blocked + 1
+	dlog("USE on %s -> BLOCKED (killer id=%s online=%s alive=%s)", obj:name(), tostring(claimed[id]), tostring(sender ~= nil), tostring(sender and sender:alive()))
+	flags.ret_value = false
+	show_block_message(sender)
+end
+
+local next_tick = 0
+local next_stats = 0
+local heartbeat_done = false
+function actor_on_update()
+	local t = time_global()
+	if t < next_tick then return end
+	next_tick = t + LOCK_INTERVAL
+
+	if not heartbeat_done then
+		heartbeat_done = true
+		dlog("HEARTBEAT actor_on_update is running (claimed=%d player_kills=%d)", count(claimed), count(player_kills))
+	end
+	if t >= next_stats then
+		next_stats = t + STATS_INTERVAL
+		dlog("STATS deaths=%d player_kills=%d claimed=%d free=%d | use allowed=%d blocked=%d | npc_looted_claimed=%d npc_looted_player_kill=%d | tables claimed=%d player_kills=%d",
+			stats.deaths, stats.player_kills, stats.claimed, stats.free, stats.allowed, stats.blocked, stats.npc_looted_claimed, stats.npc_looted_player_kill, count(claimed), count(player_kills))
+	end
+
+	-- mod switched off or NPCs allowed to loot everything: give the locked bodies back
+	if not cfg("enabled") or cfg("npc_loot_all") then
+		for id in pairs(player_kills) do
+			release_player_body(id)
+		end
+		return
+	end
+
+	for id, when in pairs(pending) do
+		if t >= when then
+			release_player_body(id)
+		end
+	end
+	for id in pairs(player_kills) do
+		lock_body(id)
+	end
+end
+
+local function save_state(m_data)
+	dlog("SAVE claimed=%d player_kills=%d", count(claimed), count(player_kills))
+	m_data.claimed = claimed
+	m_data.player_kills = player_kills
+	m_data.loot_claim_seq = { c = claimed_seq, p = player_seq, n = seq_counter }
+end
+
+local function load_state(m_data)
+	claimed = m_data.claimed or {}
+	player_kills = m_data.player_kills or {}
+	local sq = m_data.loot_claim_seq or {}
+	claimed_seq = sq.c or {}
+	player_seq = sq.p or {}
+	seq_counter = sq.n or 0
+	dlog("LOAD claimed=%d player_kills=%d", count(claimed), count(player_kills))
+end
+
+-- level change: forget everything (bodies on the old level are gone / out of reach)
+function on_level_changing()
+	dlog("LEVEL CHANGE: clearing claimed=%d player_kills=%d", count(claimed), count(player_kills))
+	claimed = {}
+	player_kills = {}
+	pending = {}
+	claimed_seq = {}
+	player_seq = {}
+	locked_logged = {}
+	npc_logged = {}
+end
+
+-- Autolooter (iTheon z_auto_looter) loots by its own key / proximity and ignores the Use-key block above,
+-- so wrap its entry points the same way the "Looting takes time" mod does.
+local al_logged = {}
+
+local function autolooter_blocks(id)
+	if not cfg("block_autolooter") then return false end
+	local blocked, reason = check_claim(id)
+	if not blocked then
+		on_player_opens(id)
+	end
+	return blocked
+end
+
+local function hook_autolooter()
+	local ok, al = pcall(function() return z_auto_looter end)
+	if not ok or not al then
+		dlog("AUTOLOOTER hook: z_auto_looter not present")
+		return
+	end
+
+	if al.get_actor then
+		local base_get_actor = al.get_actor
+		al.get_actor = function(...)
+			local target = base_get_actor(...)
+			if target and autolooter_blocks(target:id()) then
+				dlog("AUTOLOOTER (key) BLOCKED corpse=%s", target:name())
+				if cfg("show_messages") then
+					actor_menu.set_msg(1, game.translate_string("st_npc_loot_claim_far"), 5)
+				end
+				return nil
+			end
+			return target
+		end
+	end
+
+	if al.auto_looter then
+		local base_auto_looter = al.auto_looter
+		al.auto_looter = function(key, experimental_actor)
+			if experimental_actor and autolooter_blocks(experimental_actor:id()) then
+				local t = time_global()
+				local eid = experimental_actor:id()
+				if not al_logged[eid] or t - al_logged[eid] > 5000 then
+					al_logged[eid] = t
+					dlog("AUTOLOOTER (proximity) BLOCKED corpse=%s", experimental_actor:name())
+				end
+				return
+			end
+			return base_auto_looter(key, experimental_actor)
+		end
+	end
+	dlog("AUTOLOOTER hooked get_actor=%s auto_looter=%s", tostring(al.get_actor ~= nil), tostring(al.auto_looter ~= nil))
+end
+
+local function module_state(name)
+	local ok, m = pcall(function() return _G[name] end)
+	if not ok then return "error" end
+	if m == nil then return "absent" end
+	return "present(" .. type(m) .. ")"
+end
+
+function on_game_start()
+	dlog("LOADED v1.2.0 | enabled=%s player_loot_all=%s npc_loot_all=%s claim_mutants=%s release_killer_dead=%s release_killer_far=%s far_distance=%s release_after_loot=%s release_delay=%s",
+		tostring(cfg("enabled")), tostring(cfg("player_loot_all")), tostring(cfg("npc_loot_all")), tostring(cfg("claim_mutants")), tostring(cfg("release_killer_dead")), tostring(cfg("release_killer_far")), tostring(cfg("far_distance")), tostring(cfg("release_after_loot")), tostring(cfg("release_delay")))
+	dlog("modules: xr_corpse_detection=%s z_auto_looter=%s npc_loot_claim=%s XrrPlayers=%s", module_state("xr_corpse_detection"), module_state("z_auto_looter"), module_state("npc_loot_claim"), module_state("XrrPlayers"))
+
+	RegisterScriptCallback("npc_on_death_callback", npc_on_death_callback)
+	RegisterScriptCallback("monster_on_death_callback", npc_on_death_callback)
+	RegisterScriptCallback("npc_on_get_all_from_corpse", npc_on_get_all_from_corpse)
+	RegisterScriptCallback("on_before_key_press", on_before_key_press)
+	RegisterScriptCallback("actor_on_update", actor_on_update)
+	RegisterScriptCallback("save_state", save_state)
+	RegisterScriptCallback("load_state", load_state)
+	RegisterScriptCallback("on_level_changing", on_level_changing)
+	pcall(hook_autolooter)
+	dlog("callbacks registered")
+end
