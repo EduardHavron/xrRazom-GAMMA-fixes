@@ -59,21 +59,22 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 ## Состав пакета
 
 Все моды пакета в одном формате: что делает, на чьей машине нужен, где спецификация. Ставятся у всех через секцию
-«xrRazom Sync»; «Где нужен» — где мод реально работает (на остальных машинах он безвреден).
+«xrRazom Sync»; «Где нужен» — где мод реально работает (на остальных машинах он безвреден). «В игре» — проверен ли фикс
+в игре: `подтверждено`, `частично`, `не подтверждено`, `не проводилась` или `не записана` (у старых фиксов нет записи).
 
-| Мод | Что делает | Где нужен | Спека |
-|---|---|---|---|
-| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий доходят до пира | хост и пир | [FX-QVARS](specs/fixes/fx-qvars.md) |
-| zz xrRazom Fix - Taskboard Peer Details | у пира заполнены карточки PDA Taskboard Redesign | пир | [FX-TBOARD](specs/fixes/fx-tboard.md) |
-| zz xrRazom Fix - Turned-in Task Sync | пир не получает заново уже сданные повторяемые задания | пир | [FX-TURNIN](specs/fixes/fx-turnin.md) |
-| zz xrRazom Fix - Fetch Reward | честная награда за задания «принеси» (без переплаты и недоплаты) | хост | [FX-FETCH](specs/fixes/fx-fetch.md) |
-| zz xrRazom Fix - Laser State | лазеры пира не выключаются после переподключения | хост и пир | [FX-LASER](specs/fixes/fx-laser.md) |
-| zz xrRazom Fix - Remember Belt | Remember Outfit Belt помнит пояс пира после переподключения | хост и пир | [FX-BELT](specs/fixes/fx-belt.md) |
-| zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | [FX-PARTS](specs/fixes/fx-parts.md) |
-| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | [FX-KILLTR](specs/fixes/fx-killtr.md) |
-| zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | [FX-LEDGE](specs/fixes/fx-ledge.md) |
-| zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
-| Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
+| Мод | Что делает | Где нужен | В игре | Спека |
+|---|---|---|---|---|
+| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий доходят до пира | хост и пир | не записана | [FX-QVARS](specs/fixes/fx-qvars.md) |
+| zz xrRazom Fix - Taskboard Peer Details | у пира заполнены карточки PDA Taskboard Redesign | пир | не записана | [FX-TBOARD](specs/fixes/fx-tboard.md) |
+| zz xrRazom Fix - Turned-in Task Sync | пир не получает заново уже сданные повторяемые задания | пир | не записана | [FX-TURNIN](specs/fixes/fx-turnin.md) |
+| zz xrRazom Fix - Fetch Reward | честная награда за задания «принеси» (без переплаты и недоплаты) | хост | не записана | [FX-FETCH](specs/fixes/fx-fetch.md) |
+| zz xrRazom Fix - Laser State | лазеры пира не выключаются после переподключения | хост и пир | не записана | [FX-LASER](specs/fixes/fx-laser.md) |
+| zz xrRazom Fix - Remember Belt | Remember Outfit Belt помнит пояс пира после переподключения | хост и пир | не записана | [FX-BELT](specs/fixes/fx-belt.md) |
+| zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | не записана | [FX-PARTS](specs/fixes/fx-parts.md) |
+| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | не проводилась | [FX-KILLTR](specs/fixes/fx-killtr.md) |
+| zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | не проводилась | [FX-LEDGE](specs/fixes/fx-ledge.md) |
+| zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | не записана | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
+| Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | не записана | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
 `FX-*` — наши фиксы, `MOD-*` — сторонние или переработанные моды. Заметки к отдельным модам:
 - **Combined GAMMA NPC Loot Claim** — устройство, настройки MCM и план проверки от автора — в спеке [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md). Скрипты базового NPC Loot Claim
@@ -81,7 +82,8 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 
 ## Для разработки
 
-Правила и чек-лист «что обновить при изменении» — [CLAUDE.md](CLAUDE.md).
+Правила и чек-лист «что обновить при изменении» — [CLAUDE.md](CLAUDE.md). Сверка спек, тестов и документации —
+`python tools/spec_check.py` (в Claude Code — навык `/spec-check`).
 
 - `specs/` — спецификации (SDD): как работают публикация, CI, установщик, агент и каждый фикс. Сначала меняется спека,
   потом код и тесты. Правила и реестр ID — `specs/README.md`.

@@ -1,5 +1,5 @@
 # FX-QVARS: синхронизация табличных переменных заданий
-Статус: действует        Мод: `zz xrRazom Fix - Quest Vars Sync`        Скрипт: `gamedata/scripts/zz_xrrfix_quest_vars.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Quest Vars Sync`        Скрипт: `gamedata/scripts/zz_xrrfix_quest_vars.script`
 Где ставить: оба (хост и каждый пир)        Зависит от: xrRazom Co-op 1.4 (`xrr_quest_serialize`), `marshal` (Anomaly), `utils_data.string2hex` / `utils_data.hex2string`        Лог-маркер: `[XRRFIX] serializer: patched (tables via marshal+hex)`
 
 ## Проблема
@@ -12,7 +12,7 @@
 - `xrr_quest_serialize.serialize_quest_vars` кодирует табличное значение через `pcall(utils_data.write_to_ini_str, v)`,
   а `deserialize_quest_vars` — через `pcall(utils_data.read_from_ini_str, val)` (тип строки `t`).
   Функций `write_to_ini_str` / `read_from_ini_str` нет ни в одном установленном моде (проверено поиском по `D:\Games\Gamma\mods`;
-  по истории — нет и в Anomaly). `pcall` проглатывает ошибку, строка `t` не формируется — таблица молча не уходит к пиру.
+  по истории — нет и в Anomaly [НЕ ПРОВЕРЕНО]). `pcall` проглатывает ошибку, строка `t` не формируется — таблица молча не уходит к пиру.
 - Пир применяет только то, что пришло (`OnQuestListResponse` → `deserialize_quest_vars(var_blob)` в `xrr_patch_quests.script`),
   поэтому в его pstor остаются таблицы от прошлых запусков задания.
 - Дополнительно: строки с `\t`, `\n`, `\r` или `\3` ломают формат — строки блоба разделены `\n`, поля — `\t`,

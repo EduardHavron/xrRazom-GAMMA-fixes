@@ -1,5 +1,5 @@
 # FX-FETCH: честная награда за задания «принеси»
-Статус: действует        Мод: `zz xrRazom Fix - Fetch Reward`        Скрипт: `gamedata/scripts/zz_xrrfix_fetch_reward.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Fetch Reward`        Скрипт: `gamedata/scripts/zz_xrrfix_fetch_reward.script`
 Где ставить: хост (на пире безвреден — там `calc_fetch_money` не вызывается)        Зависит от: xrRazom Co-op 1.4 (`xrr_quest_reward.calc_fetch_money`, `XrrPlayers`), Tasks QoL Pack (`tasks_fetch.script`, `xr_effects.fetch_reward_and_remove`)        Лог-маркер: `[XRRFIX] fetch: calc_fetch_money patched (host reads peer avatars)`
 
 ## Проблема
@@ -110,7 +110,7 @@
 - Если нужное количество разделено между держателями (часть у хоста, часть у пира, или у двух пиров), ни один не «держит
   достаточно» → номинал (полное состояние), т.е. возможна переплата за изношенные предметы.
 - Номинал не учитывает `multiuse` (`cost * count`, без деления на `max_use`).
-- Предполагается (по устройству xrRazom, не проверено в C++), что аватар пира на хосте содержит реальный инвентарь пира
+- [НЕ ПРОВЕРЕНО] Предполагается (по устройству xrRazom, в C++ не проверялось), что аватар пира на хосте содержит реальный инвентарь пира
   и пояс читается через `iterate_belt` (под `pcall`; если не читается — пояс не исключается).
 - Множитель `get_eco_factor("rewards")`, который применял xrRazom, не применяется — как и в соло-формуле Tasks QoL.
 - Артефакт в контейнере (ванильная распаковка `_lead_box` и т.п.) не учитывается: ищется только секция `sec`.

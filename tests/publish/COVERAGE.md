@@ -95,7 +95,7 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 
 | ID | Test(s) |
 |---|---|
-| SYS-001 | not here: CI build — tests/python (T1) |
+| SYS-001 | via CI-016, CI-017 (tests/python: zip holds only listed mods, in pack order) |
 | SYS-002 | `SYS-002 byte-exact ...` (MO2 → repo → peer catch-up, and repo → `build_pack.py build` zip → installer; zip leg skipped with a note if python is missing) |
 | SYS-003 | `SYS-003 only enabled mods of the section ...` |
 | SYS-004 | `INS-021 INS-028 SYS-004 ...` |
@@ -106,6 +106,6 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 | SYS-009 | `PUB-024 PUB-044 SYS-009 ...` (publish side; installer side: `INS-005 INS-007 ...`; agent side: tests/agent) |
 | SYS-010 | manual |
 | SYS-011 | `SYS-011 (publish side) ...`; the agent tick itself: tests/agent (T3) |
-| SYS-012 | not here: CI (T1 / workflow) |
+| SYS-012 | via CI-005, CI-011 (tests/python: release steps after validation; Lua syntax error stops the build) |
 | SYS-013 | `PUB-034 SYS-013 ...` |
-| SYS-014 | not here: repo-wide static check in tests/python (`test_repo_014_no_secrets`) |
+| SYS-014 | tests/python `test_repo_014_no_secrets` (docstring names SYS-014) |

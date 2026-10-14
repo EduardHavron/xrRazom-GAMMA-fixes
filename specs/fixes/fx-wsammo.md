@@ -1,5 +1,5 @@
 # FX-WSAMMO: верстак списывает все коробки-материалы
-Статус: действует        Мод: `zz Workshop Ammo Material Fix`        Скрипт: `gamedata/scripts/zz_workshop_ammo_fix.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz Workshop Ammo Material Fix`        Скрипт: `gamedata/scripts/zz_workshop_ammo_fix.script`
 Где ставить: у каждого, кто крафтит (хост, пир, соло; от xrRazom не зависит)        Зависит от: Serious Workshop optimization (`ui_workshop.UIWorkshopCraft`), Craft From Stashes (переопределяет `UpdateItem` и `Craft`)        Лог-маркер: `[WSFIX] workshop: ammo material consumption patched`
 
 ## Проблема

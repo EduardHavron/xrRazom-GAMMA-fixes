@@ -1,5 +1,5 @@
 # FX-PARTS: вылет пира на подсказке оружия из трупа
-Статус: действует        Мод: `zz xrRazom Fix - Weapon Parts Tooltip`        Скрипт: `gamedata/scripts/zz_xrrfix_parts_tooltip.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Weapon Parts Tooltip`        Скрипт: `gamedata/scripts/zz_xrrfix_parts_tooltip.script`
 Где ставить: пир (на хосте и в соло безвреден)        Зависит от: Momopate's Barrel Condition Effects Display (`zzzz_arti_jamming_repairs`), `item_parts`        Лог-маркер: `[XRRFIX] parts tooltip: nil-safe spairs installed`
 
 ## Проблема

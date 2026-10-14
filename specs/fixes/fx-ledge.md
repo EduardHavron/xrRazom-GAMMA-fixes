@@ -1,5 +1,5 @@
 # FX-LEDGE: подтягивание на уступы в коопе
-Статус: черновик (в игре не проверен)        Мод: `zz xrRazom Fix - Ledge Grabbing`        Скрипт: `gamedata/scripts/zz_xrrfix_ledge_grabbing.script`, конфиг: `gamedata/configs/mod_system_zzzzzzzzzzzzzzz_xrrfix_ledge_jump.ltx`
+Статус: черновик        Проверка в игре: не проводилась        Мод: `zz xrRazom Fix - Ledge Grabbing`        Скрипт: `gamedata/scripts/zz_xrrfix_ledge_grabbing.script`, конфиг: `gamedata/configs/mod_system_zzzzzzzzzzzzzzz_xrrfix_ledge_jump.ltx`
 Где ставить: хост и пир (у каждого свой персонаж; в соло тоже работает)        Зависит от: 350- Ledge Grabbing - Demonized (`demonized_ledge_grabbing`), Anti_Lag_for_GAMMA v0.46 (его версия `demonized_ledge_grabbing.script`), xrRazom Co-op 1.4 (`mod_system_zzzzzzzzzzzzzz_xrmpe_chemzs_actor.ltx`), DLTX (modded exes)        Лог-маркер: `[XRRFIX] ledge: continuous ledge detection restored`
 
 ## Проблема
@@ -85,7 +85,7 @@
 ## Безопасность
 - Без Anti-Lag (оригинальный скрипт Demonized) скрипт ничего не делает; конфиг всё равно вернёт прыжок GAMMA.
 - Без xrRazom конфиг ставит то же значение, что и GAMMA, — ничего не меняет.
-- Каждый игрок управляет своим персонажем локально, поэтому `jump_speed` на синхронизацию по идее не влияет — это
+- Каждый игрок управляет своим персонажем локально, поэтому `jump_speed` на синхронизацию, вероятно, не влияет [НЕ ПРОВЕРЕНО] — это
   проверяется FX-LEDGE-008.
 - Повторная загрузка уровня: `actor_on_first_update` Anti-Lag регистрирует ту же функцию-замену, колбэки по значению функции
   не дублируются.
@@ -93,7 +93,7 @@
 ## Вне области / известные ограничения
 - `climb_coef` (скорость на лестницах, xrRazom 0.5 против 0.625 в GAMMA) не трогается.
 - Нагрузка поиска края возвращается к оригиналу (до 15 лучей за кадр при движении); при просадке FPS — `throttleCheck` в MCM.
-- Порядок DLTX по имени файла — по документации DLTX; если другой мод переопределит `jump_speed` файлом с ещё более
+- Порядок DLTX по имени файла — по документации DLTX [НЕ ПРОВЕРЕНО]; если другой мод переопределит `jump_speed` файлом с ещё более
   поздним именем, выиграет он.
 - Ledge Grabbing ищет только статическую геометрию (`flags = 2`): за физические предметы (ящики, машины) он не цепляется
   ни в коопе, ни в соло — фикс это не меняет.

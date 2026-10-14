@@ -5,6 +5,7 @@ Spec: specs/system/repo-layout.md (REPO-002, REPO-003, REPO-005, REPO-006, REPO-
 import json
 import os
 import re
+import sys
 import unittest
 
 import bp_helpers as H
@@ -175,7 +176,7 @@ class TrackedFilesTests(unittest.TestCase):
         self.assertEqual(bad, [])
 
     def test_repo_014_no_secrets(self):
-        """REPO-014: no Discord webhook URLs or GitHub tokens in tracked text files."""
+        """REPO-014 / SYS-014: no Discord webhook URLs or GitHub tokens in tracked text files."""
         hook = re.compile(r"discord(app)?\.com/api/webhooks/\d+/[\w-]{20,}")
         token = re.compile(r"\b(gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b")
         hits = []
@@ -227,33 +228,10 @@ class EncodingTests(unittest.TestCase):
         """KNOWN-REPO-2 placeholder: .bat line endings (CRLF) not asserted."""
 
 
-def _table_cells(text, headings, col):
-    """Cell `col` of every data row of the markdown tables under the given `## ` headings."""
-    names, active = [], False
-    for line in text.splitlines():
-        if line.startswith("## "):
-            active = line[3:].strip() in headings
-            continue
-        if not (active and line.startswith("|")):
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) <= col or set(cells[0]) <= set("-: ") or cells[col] in ("Мод", "ID"):
-            continue
-        names.append(cells[col])
-    return names
 
-
-def doc_mismatches(pack_mods, readme_text, specs_text):
-    """REPO-017: list of 'missing'/'stale' findings for README.md and specs/README.md."""
-    docs = {
-        "README.md": _table_cells(readme_text, ("Состав пакета",), 0),
-        "specs/README.md": _table_cells(specs_text, ("Реестр фиксов", "Другие моды в пакете"), 1),
-    }
-    out = []
-    for doc, names in docs.items():
-        out += ["%s: missing %s" % (doc, m) for m in pack_mods if m not in names]
-        out += ["%s: stale %s" % (doc, n) for n in names if n not in pack_mods]
-    return out
+# REPO-017 shares the comparison with tools/spec_check.py (CHK-005).
+sys.path.insert(0, os.path.join(H.REPO_ROOT, "tools"))
+from spec_check import doc_mismatches  # noqa: E402
 
 
 class DocsListPackTests(unittest.TestCase):

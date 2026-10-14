@@ -1,5 +1,5 @@
 # FX-LASER: состояние лазеров пира после переподключения
-Статус: действует        Мод: `zz xrRazom Fix - Laser State`        Скрипт: `gamedata/scripts/zz_xrrfix_laser.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Laser State`        Скрипт: `gamedata/scripts/zz_xrrfix_laser.script`
 Где ставить: оба (в заголовке скрипта — «каждый пир», но приём/выдача райдера идут и через хост, см. «Причина»)        Зависит от: xrRazom Co-op 1.4 (`xrr_item_mdata.declare`), Laser Settings (`zzz_bas_laser_control`)        Лог-маркер: `[XRRFIX] laser: saved_lasers_id declared as per-item rider`
 
 ## Проблема
@@ -17,7 +17,7 @@
   `m_data[key][id]` по манифесту; `xrr_item_mdata_apply(id, set)` принимает и для незадекларированного ключа пишет
   `![xrRazom][ItemMData] inbound key <key> is not declared here — dropped`; `poll` раз в секунду помечает предмет «грязным»
   при изменении сигнатуры райдеров. Следовательно, ключ должен быть задекларирован на обеих сторонах: пир — чтобы отправить
-  и принять, хост — чтобы принять, хранить и вернуть при подключении (вывод по Lua-коду; C++-хранилище хоста не проверялось).
+  и принять, хост — чтобы принять, хранить и вернуть при подключении [НЕ ПРОВЕРЕНО] (вывод по Lua-коду; C++-хранилище хоста не проверялось).
 
 ## Решение
 В `on_game_start` (под `pcall`): если загружен `zzz_bas_laser_control` и есть `xrr_item_mdata.declare` —

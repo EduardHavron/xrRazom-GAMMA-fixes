@@ -24,6 +24,8 @@
 | `tests/` | Автотесты (PowerShell 5.1, `tests/lib/assert.ps1`) | разработчик |
 | `README.md`, `LICENSE`, `.gitattributes`, `.gitignore` | Обзор, лицензия, правило байт-в-байт, игнор (`__pycache__/`, `*.pyc`, `dist/`, `xrRazom_fixes.zip`) | разработчик |
 | `CLAUDE.md` | Правила разработки: что обновлять при каждом изменении (спека, тесты, README) | разработчик |
+| `tools/spec_check.py` | Сверка спек, тестов, `COVERAGE.md` и README (`spec-check.md`); в релиз не входит | разработчик |
+| `.claude/skills/spec-check/SKILL.md` | Навык Claude Code `/spec-check` | разработчик |
 
 `.gitignore` исключает локальные артефакты сборки и тестов: `__pycache__/`, `*.pyc`, `dist/`, `xrRazom_fixes.zip`.
 

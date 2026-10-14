@@ -1,5 +1,5 @@
 # FX-TBOARD: текст карточек PDA Taskboard Redesign у пира
-Статус: действует        Мод: `zz xrRazom Fix - Taskboard Peer Details`        Скрипт: `gamedata/scripts/zz_xrrfix_taskboard.script`
+Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Taskboard Peer Details`        Скрипт: `gamedata/scripts/zz_xrrfix_taskboard.script`
 Где ставить: пир (на хосте безвреден)        Зависит от: xrRazom Co-op 1.4 (`xrr_patch_quests`: `xrr_peer_task_offer_preview`), PDA Taskboard Redesign v1.3 (`pda_taskboard`, `pda_taskboard_utils`)        Лог-маркер: `[XRRFIX] taskboard: get_task_card patched for peers`
 
 ## Проблема

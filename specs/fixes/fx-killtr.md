@@ -1,5 +1,5 @@
 # FX-KILLTR: метки КПК — трупы-зеркала не «убиты пиром»
-Статус: черновик (в игре не проверен)        Мод: `zz xrRazom Fix - Kill Tracker Mirror Corpses`        Скрипт: `gamedata/scripts/zz_xrrfix_kill_tracker.script`
+Статус: черновик        Проверка в игре: не проводилась        Мод: `zz xrRazom Fix - Kill Tracker Mirror Corpses`        Скрипт: `gamedata/scripts/zz_xrrfix_kill_tracker.script`
 Где ставить: пир (на хосте и в соло безвреден)        Зависит от: 413- Milspec PDA (`ish_kill_tracker`), xrRazom Co-op 1.4 (`XrrIsClient`); опционально Stealth Kill Detection (`stealth_kill_detection`)        Лог-маркер: `[XRRFIX] killtracker: mirror corpse guard installed`
 
 ## Проблема
@@ -12,7 +12,7 @@
   `tracked_kill` считает его убийством игрока при `killer_id == AC_ID` (по режиму отслеживания — метка на карте).
 - На пире при загрузке/переходе xrRazom получает трупы хоста как зеркала: NPC локально создаётся и убивается
   (лог `MirrorSetup corpse`, C++), и колбэк смерти приходит с актёром пира в качестве убийцы — по истории и логам,
-  в Lua-коде xrRazom это не видно. Поэтому каждый такой труп записывается как убийство пира.
+  в Lua-коде xrRazom это не видно [НЕ ПРОВЕРЕНО]. Поэтому каждый такой труп записывается как убийство пира.
 - `xrr_patch_kill_tracker.script` xrRazom правит только `safename` (имя аватара-убийцы), атрибуцию зеркал не трогает.
 - Из `xrr_patch_pba.script`: у зеркала колбэк попадания вызывается только эхом хоста, труп эха не получает — на этом
   основан критерий фикса.

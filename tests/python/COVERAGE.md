@@ -59,26 +59,44 @@ Expected failures: none. (CI-016 in-mod file order was a spec error; the spec wa
 | CI-028 | manual | `test_ci_028_no_expressions_in_scripts` (static), `test_ci_028_commit_message_not_executed` (POSIX, injection attempt) |
 | CI-029 | manual | manual (re-run on GitHub) |
 | CI-030 | manual | manual (repository settings) |
+| CI-031 | manual | manual (release run waits for the tests job; see `test_ci_005_step_order_and_runner` for the gate step) |
 | Open questions 7, 8, 9 | n/a | skipped placeholders `test_known_ci_7_*`, `test_known_ci_8_*`, `test_known_ci_9_*` (not asserted) |
 
 ## repo-layout.md
 
 | ID | Tag | Tests |
 |---|---|---|
-| REPO-001 | auto | not covered here: publish behaviour, tests/publish (T2) |
+| REPO-001 | auto | via PUB-010 (tests/publish: leftovers in mods/ and pack/ are reset) |
 | REPO-002 | auto | `test_repo_002_repo_014_no_top_level_meta_or_marker` (static part: nothing tracked). The publish part is in tests/publish (T2). |
 | REPO-003 | auto | `test_ci_007_repo_003_empty_mods`, `test_ci_007_repo_003_duplicate_name`, `test_ci_009_repo_003_missing_mod_dir`, `test_repo_003_real_pack_json_schema`, `test_repo_003_real_repo_validate_passes` |
-| REPO-004 | auto | not covered here: publish ordering, tests/publish (T2) |
+| REPO-004 | auto | via PUB-019, PUB-020 (tests/publish: pack order follows the section) |
 | REPO-005 | auto | `test_repo_005_real_pack_json_format` (committed file matches the serialisation), `test_repo_005_serialiser_example`. The writing side is in tests/publish (T2). |
 | REPO-006 | auto | `test_ci_007_repo_006_bom_accepted`, `test_repo_006_build_accepts_bom_copy_of_real_pack`, `test_repo_006_discord_mods_list_reads_bom` (CI Discord one-liner). The publish side is in T2. |
 | REPO-007 | auto | `test_ci_010_repo_007_unlisted_mod_warns`, `test_ci_016_repo_007_entries_and_order`, `test_ci_017_only_listed_mods`. The 3-way side is in T2. |
 | REPO-008 | auto | `test_repo_008_gitattributes_star_minus_text`, `test_repo_008_text_attribute_unset_for_mod_files`, `test_repo_008_worktree_bytes_equal_blobs`, `test_repo_008_publish_git_calls_disable_autocrlf` (static). The clone round-trip is in T2. |
 | REPO-009 | auto | `test_ci_017_repo_009_header_and_mod_order`, plus all of CI-017 |
-| REPO-010 | auto | not covered here: marker handling, tests/publish + installer (T2) |
-| REPO-011 | auto | not covered here: publish catch-up, tests/publish (T2) |
+| REPO-010 | auto | via PUB-014, PUB-027, INS-011 (marker ignored by compare; written on removal and by the installer) |
+| REPO-011 | auto | via PUB-014 (top-level meta.ini not published or compared). GAP: catch-up keeping the local meta.ini has no test |
 | REPO-012 | auto | `test_ci_015_repo_012_version_expression`, `test_ci_020_repo_012_create_release` (static workflow checks) |
-| REPO-013 | auto | not covered here: publish commit scope, tests/publish (T2) |
+| REPO-013 | auto | via PUB-034 (commit holds only mods/ and pack/; dirty README stays uncommitted). Staged-index variant not tested separately |
 | REPO-014 | auto | `test_repo_002_repo_014_no_top_level_meta_or_marker`, `test_repo_014_no_build_artifacts_profiles_agent_state`, `test_repo_014_no_secrets`. These check `git ls-files` outside `tests/`, so test fixtures are allowed. |
 | REPO-015 | auto | `test_repo_015_ps1_and_publish_ini_have_bom`, `test_repo_015_cyrillic_txt_has_bom`, `test_repo_015_bat_ascii`; skipped placeholder `test_known_repo_2_bat_crlf` |
 | REPO-016 | auto | `test_repo_016_ci_001_push_paths_filter`, `test_ci_001_repo_016_paths_listed` |
 | REPO-017 | auto | `test_repo_017_in_sync`, `test_repo_017_missing_and_stale` (parser on synthetic docs); `test_repo_017_real_docs_list_pack` (real docs; mismatch = `::warning` + skip, never a failure) |
+
+## CHK (specs/system/spec-check.md) — test_spec_check.py
+
+| Requirement | Mode | Test(s) |
+|---|---|---|
+| CHK-001 | auto | `test_chk_001_clean_repo_has_no_findings`, `test_chk_001_auto_without_test_is_error`, `test_chk_001_via_and_gap`, `test_chk_001_test_name_forms` |
+| CHK-002 | auto | `test_chk_002_unknown_and_deleted_ids` |
+| CHK-003 | auto | `test_chk_003_coverage_missing_and_unknown` |
+| CHK-004 | auto | `test_chk_004_verdict` |
+| CHK-005 | auto | `test_chk_005_docs_vs_pack`; the same function backs REPO-017 in test_repo_static.py |
+| CHK-006 | auto | `test_chk_006_unverified_markers_are_notes` |
+| CHK-007 | auto | `test_chk_007_read_only_exit_codes_json` |
+| CHK-008 | auto | `test_chk_008_real_repository` |
+| CHK-009 | manual | manual (the /spec-check skill) |
+
+Found while writing these tests: the python test-name pattern used `\b` before the area prefix, which never matches after `_`,
+so IDs in function names (`test_repo_017_…`) were ignored. Fixed to `(?:^|_)`; `test_chk_001_test_name_forms` covers it.
