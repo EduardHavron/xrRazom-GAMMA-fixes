@@ -58,27 +58,29 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 
 ## Состав пакета
 
-### Фиксы
+Все моды пакета в одном формате: что делает, на чьей машине нужен, где спецификация. Ставятся у всех через секцию
+«xrRazom Sync»; «Где нужен» — где мод реально работает (на остальных машинах он безвреден).
 
-| Мод | Что чинит | Спека |
-|---|---|---|
-| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий не доходили до пира | [FX-QVARS](specs/fixes/fx-qvars.md) |
-| zz xrRazom Fix - Taskboard Peer Details | у пира пустые карточки в PDA Taskboard Redesign | [FX-TBOARD](specs/fixes/fx-tboard.md) |
-| zz xrRazom Fix - Turned-in Task Sync | пир заново получал уже сданные повторяемые задания | [FX-TURNIN](specs/fixes/fx-turnin.md) |
-| zz xrRazom Fix - Fetch Reward | неверная награда за задания «принеси» (переплата/недоплата) | [FX-FETCH](specs/fixes/fx-fetch.md) |
-| zz xrRazom Fix - Laser State | лазеры пира выключались после переподключения | [FX-LASER](specs/fixes/fx-laser.md) |
-| zz xrRazom Fix - Remember Belt | Remember Outfit Belt терял пояс у пира после переподключения | [FX-BELT](specs/fixes/fx-belt.md) |
-| zz xrRazom Fix - Weapon Parts Tooltip | вылет пира при наведении на оружие в трупе (Momopate's Barrel Condition) | [FX-PARTS](specs/fixes/fx-parts.md) |
-| zz Workshop Ammo Material Fix | верстак не списывал одну коробку материала (не xrRazom, работает и в соло) | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
-| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA помечал все трупы-зеркала как убитые пиром | [FX-KILLTR](specs/fixes/fx-killtr.md) |
+| Мод | Что делает | Где нужен | Спека |
+|---|---|---|---|
+| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий доходят до пира | хост и пир | [FX-QVARS](specs/fixes/fx-qvars.md) |
+| zz xrRazom Fix - Taskboard Peer Details | у пира заполнены карточки PDA Taskboard Redesign | пир | [FX-TBOARD](specs/fixes/fx-tboard.md) |
+| zz xrRazom Fix - Turned-in Task Sync | пир не получает заново уже сданные повторяемые задания | пир | [FX-TURNIN](specs/fixes/fx-turnin.md) |
+| zz xrRazom Fix - Fetch Reward | честная награда за задания «принеси» (без переплаты и недоплаты) | хост | [FX-FETCH](specs/fixes/fx-fetch.md) |
+| zz xrRazom Fix - Laser State | лазеры пира не выключаются после переподключения | хост и пир | [FX-LASER](specs/fixes/fx-laser.md) |
+| zz xrRazom Fix - Remember Belt | Remember Outfit Belt помнит пояс пира после переподключения | хост и пир | [FX-BELT](specs/fixes/fx-belt.md) |
+| zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | [FX-PARTS](specs/fixes/fx-parts.md) |
+| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | [FX-KILLTR](specs/fixes/fx-killtr.md) |
+| zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
+| Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
-### Другие моды
-
-| Мод | Что это |
-|---|---|
-| Combined GAMMA NPC Loot Claim v.1.2.1 | «право на лут» с настройкой через MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира в коопе считаются убийствами игрока. Скрипты базового NPC Loot Claim (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками Описание автора — `SDD.md` в папке мода, требования и тесты — [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
+`FX-*` — наши фиксы, `MOD-*` — сторонние или переработанные моды. Заметки к отдельным модам:
+- **Combined GAMMA NPC Loot Claim** — описание автора лежит в `SDD.md` в папке мода. Скрипты базового NPC Loot Claim
+  (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками.
 
 ## Для разработки
+
+Правила и чек-лист «что обновить при изменении» — [CLAUDE.md](CLAUDE.md).
 
 - `specs/` — спецификации (SDD): как работают публикация, CI, установщик, агент и каждый фикс. Сначала меняется спека,
   потом код и тесты. Правила и реестр ID — `specs/README.md`.

@@ -22,9 +22,10 @@
 | `.github/scripts/build_pack.py` | Проверка `pack.json`/Lua/XML и сборка zip | разработчик |
 | `specs/` | Спецификации SDD (источник истины) | разработчик |
 | `tests/` | Автотесты (PowerShell 5.1, `tests/lib/assert.ps1`) | разработчик |
-| `README.md`, `LICENSE`, `.gitattributes` | Обзор, лицензия, правило байт-в-байт | разработчик |
+| `README.md`, `LICENSE`, `.gitattributes`, `.gitignore` | Обзор, лицензия, правило байт-в-байт, игнор (`__pycache__/`, `*.pyc`, `dist/`, `xrRazom_fixes.zip`) | разработчик |
+| `CLAUDE.md` | Правила разработки: что обновлять при каждом изменении (спека, тесты, README) | разработчик |
 
-`.gitignore` в репозитории нет.
+`.gitignore` исключает локальные артефакты сборки и тестов: `__pycache__/`, `*.pyc`, `dist/`, `xrRazom_fixes.zip`.
 
 ### `pack/pack.json`
 
@@ -163,7 +164,7 @@ git из publish ДОЛЖНЫ выполняться с `-c core.autocrlf=false 
 - Дано файлы `host/*.ps1`, `installer/*.ps1`, `agent/*.ps1`, `host/publish.ini`. Когда читаем первые 3 байта. Тогда `EF BB BF`.
 - Дано `*.bat`. Тогда все байты < 0x80.
 
-### REPO-016 Изменения `specs/`, `tests/`, `README.md` не выпускают релиз  [auto]
+### REPO-016 Изменения `specs/`, `tests/`, `README.md`, `CLAUDE.md` не выпускают релиз  [auto]
 Push, меняющий только пути вне `mods/`, `pack/`, `installer/`, `agent/`, `.github/workflows/release.yml`,
 `.github/scripts/`, НЕ ДОЛЖЕН запускать сборку релиза.
 - Дано коммит меняет только `specs/system/publish.md`. Когда он запушен в `main`. Тогда workflow `release.yml` не стартует
@@ -187,7 +188,7 @@ Push, меняющий только пути вне `mods/`, `pack/`, `installer
    из репозитория исключается (код главнее).
 2. Все `.bat` (`host/publish.bat`, `installer/install.bat`, `agent/*.bat`) хранятся в ASCII + CRLF (проверено по
    `git show HEAD:<file>`); `* -text` сохраняет CRLF как есть. REPO-015 при этом CRLF явно не требует — кандидат на ужесточение.
-3. `.gitignore` нет: ничто технически не мешает закоммитить `dist/` или `xrRazom_fixes.zip` вручную; REPO-014 проверяется тестом.
+3. `.gitignore` защищает только от случайного `git add`: `git add -f` по-прежнему может закоммитить `dist/` или `xrRazom_fixes.zip`; REPO-014 проверяется тестом.
 4. `pack.json` с пустым `mods` publish записать может (см. `publish.md`), но CI такой коммит отвергнет — релиза не будет.
 5. Имена модов с запятой ломают разбор `XRRFIX_SYNC_*` и `-TakeRemote/-TakeLocal` (запятая — разделитель).
 6. Версия в README записана как `vГГГГ.ММ.ДД-N` без пояснения, что N сквозной и не сбрасывается по дням.
