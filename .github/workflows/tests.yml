@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow_ref }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Python (build_pack) + Lua (fixes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LuaJIT
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq luajit
+          luajit -v
+      - name: Python tests (tests/python)
+        run: python3 -m unittest discover -s tests/python -v
+      - name: Lua tests (tests/lua)
+        run: luajit tests/lua/run.lua
+
+  windows:
+    name: PowerShell 5.1 (publish, installer, agent)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish + installer tests (tests/publish)
+        run: |
+          $PSVersionTable.PSVersion.ToString()
+          & .\tests\publish\run.ps1
+          exit $LASTEXITCODE
+      - name: Agent tests (tests/agent)
+        if: ${{ !cancelled() }}
+        run: |
+          & .\tests\agent\run.ps1
+          exit $LASTEXITCODE

@@ -20,9 +20,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   release:
+    needs: tests
+    # runs even when tests failed, so the Discord step can report the failure
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
+      - name: Require green tests
+        env:
+          TESTS_RESULT: ${{ needs.tests.result }}
+        run: |
+          echo "tests: $TESTS_RESULT"
+          [ "$TESTS_RESULT" = "success" ] || { echo "::error::Tests failed - no release"; exit 1; }
+
       - name: Checkout
         uses: actions/checkout@v4
 

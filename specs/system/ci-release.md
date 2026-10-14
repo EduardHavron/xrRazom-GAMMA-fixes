@@ -48,7 +48,7 @@ Workflow ДОЛЖЕН объявлять `permissions: contents: write` и НЕ 
 - Дано A выполняется, B ожидает. Когда создаётся прогон C. Тогда B отменяется самим GitHub (в группе хранится не более одного ожидающего прогона), C ждёт A (см. «Открытые вопросы»).
 
 ### CI-005 Порядок шагов и прерывание  [manual]
-Job `release` (runner `ubuntu-latest`) ДОЛЖЕН выполнять шаги строго в порядке: Checkout → Install LuaJIT / xmllint → Validate → Build zip → Create release → Notify Discord.
+Job `release` (runner `ubuntu-latest`) ДОЛЖЕН выполнять шаги строго в порядке: Require green tests → Checkout → Install LuaJIT / xmllint → Validate → Build zip → Create release → Notify Discord (см. CI-031).
 Падение любого шага до «Notify Discord» ДОЛЖНО прерывать последующие шаги, кроме «Notify Discord», и делать job неуспешным.
 - Дано шаг Validate завершился кодом 1. Когда job продолжается. Тогда Build zip и Create release пропускаются, релиз не создаётся, Notify Discord выполняется, job имеет статус failure.
 
@@ -107,7 +107,7 @@ Job `release` (runner `ubuntu-latest`) ДОЛЖЕН выполнять шаги 
 `build` ДОЛЖЕН создавать `<out>/xrRazom_fixes.zip` (DEFLATE, уровень 9; существующий файл перезаписывается) с ровно такими записями, в таком порядке:
 1. `pack.txt` (CI-017);
 2. `install.ps1`, `install.bat`, `README.txt` — байт-в-байт из `installer/`;
-3. для каждого мода `N` в порядке `mods` — все файлы `mods/N/**` как `mods/N/<относительный путь с '/'>` (в порядке обхода `os.walk` с сортировкой подпапок); пустые папки не включаются;
+3. для каждого мода `N` в порядке `mods` — все файлы `mods/N/**` как `mods/N/<относительный путь с '/'>` (отсортированы по относительному пути с `\` — тот же порядок, что в pack.txt); пустые папки не включаются;
 4. если существует `agent/` — каждый обычный файл верхнего уровня `agent/` в сортированном порядке как `agent/<имя>` (подпапки не включаются).
 Папки `mods/`, не перечисленные в pack.json, НЕ ДОЛЖНЫ попадать в архив.
 - Дано pack.json `["B","A"]`, `mods/A`, `mods/B`, `mods/C`, `agent/x.ps1`, `agent/sub/y`. Когда `build`. Тогда в архиве `pack.txt`, 3 файла установщика, файлы `mods/B/...`, затем `mods/A/...`, затем `agent/x.ps1`; нет `mods/C/...` и `agent/sub/y`.
@@ -181,6 +181,12 @@ section=<section из pack.json, без изменений>
 
 ### CI-030 Настройки репозитория  [manual]
 Для работы ДОЛЖНЫ выполняться условия: GitHub Actions включены; политика организации/репозитория позволяет `GITHUB_TOKEN` получить `contents: write`; правила защиты тегов/rulesets не запрещают создание тегов `v*` от `github-actions`; ветка по умолчанию — `main`. Секрет `DISCORD_WEBHOOK` (Settings → Secrets and variables → Actions → Repository secret) МОЖЕТ отсутствовать (CI-023).
+
+### CI-031 Тесты до релиза  [manual]
+Workflow релиза ДОЛЖЕН сначала вызывать `.github/workflows/tests.yml` (job `tests`, `workflow_call`); job `release` ДОЛЖЕН иметь `needs: tests` и `if: ${{ !cancelled() }}`,
+а его первый шаг «Require green tests» ДОЛЖЕН завершаться кодом 1, если `needs.tests.result` ≠ `success`. Отдельно `tests.yml` ДОЛЖЕН запускаться на каждый push и pull request.
+- Дано тесты упали. Когда работает job `release`. Тогда «Require green tests» падает, Validate/Build/Create release пропускаются, релиза нет, Notify Discord отправляет сообщение о падении.
+- Дано тесты прошли. Тогда job `release` выполняется как в CI-005.
 
 ## Ошибки и граничные случаи
 - Ошибка в `.script` папки, не перечисленной в pack.json, валит проверку, хотя мод не попадает в релиз (CI-011).
