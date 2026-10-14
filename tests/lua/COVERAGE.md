@@ -52,6 +52,30 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-KILLTR-005 | FX-KILLTR-005 (a) mod registered first; (b) mod registers after the fix | test_killtr.lua |
 | FX-KILLTR-006, -007 | manual | |
 
+### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim v.1.2) — test_lootclaim.lua
+
+| Requirement | Test case(s) |
+|---|---|
+| MOD-LOOTCLAIM-001 | MCM page lists every DEFAULTS key with the same defaults; without MCM defaults apply, MCM enabled=false switches the mod off |
+| MOD-LOOTCLAIM-002 | actor kill of a stalker; peer avatar and companion count as the player; no xrRazom; npc_loot_all + mutant victim |
+| MOD-LOOTCLAIM-003 | free bodies (all six reasons); companion kill with companions_are_player=false |
+| MOD-LOOTCLAIM-004 | NPC kill: claimed[victim] = killer |
+| MOD-LOOTCLAIM-005 | Use blocked near a live killer; release rules (dead / not loaded / far); ignored keys and targets |
+| MOD-LOOTCLAIM-006 | lock re-applied every 1000 ms |
+| MOD-LOOTCLAIM-007 | own kill released after release_delay; scheduled once; release_after_loot=false |
+| MOD-LOOTCLAIM-008 | enabled=false / npc_loot_all release every locked body |
+| MOD-LOOTCLAIM-009 | NPC looting frees a claimed body; player kills untouched |
+| MOD-LOOTCLAIM-010 | autolooter blocked / allowed / block_autolooter=false / module absent |
+| MOD-LOOTCLAIM-011 | tip from a near killer, actor_menu text otherwise, show_messages=false |
+| MOD-LOOTCLAIM-012 | save/load round trip, pending not saved |
+| MOD-LOOTCLAIM-013 | level change clears all tables |
+| MOD-LOOTCLAIM-014 | over 1000 entries the 100 oldest are dropped |
+| MOD-LOOTCLAIM-015 | Semenov tissue counter |
+| MOD-LOOTCLAIM-016 | manual (co-op on a real host) |
+
+Mutation check (2026-10-14): disabling the Use block, inverting the distance check, removing the table cap, changing LOCK_VALUE
+and disabling the release after NPC loot each made the matching cases fail.
+
 ## Expected failures
 
 - **FX-BELT-002 (numeric outfit key)**: the requirement says every entry is normalized in place (`items` -> `{[number]=true}`,

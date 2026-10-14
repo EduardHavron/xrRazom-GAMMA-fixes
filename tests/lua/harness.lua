@@ -348,6 +348,7 @@ local KNOWN_CALLBACKS = {
 	"npc_on_death_callback", "monster_on_death_callback", "npc_on_hit_callback", "monster_on_hit_callback",
 	"npc_on_before_hit", "monster_on_before_hit", "actor_item_to_belt", "actor_item_to_ruck", "actor_item_to_slot",
 	"on_option_change", "server_entity_on_unregister",
+	"npc_on_get_all_from_corpse", "on_before_key_press", "on_level_changing",
 }
 
 function H.env()

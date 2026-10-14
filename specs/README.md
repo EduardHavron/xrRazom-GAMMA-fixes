@@ -94,4 +94,4 @@ specs/
 
 | ID | Мод | Кратко | Спека |
 |---|---|---|---|
-| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с MCM, убийства пира в коопе = убийства игрока | нет (добавлен 2026-10-14) |
+| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |

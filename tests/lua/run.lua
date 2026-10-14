@@ -20,6 +20,7 @@ local files = {
 	"test_parts.lua",
 	"test_wsammo.lua",
 	"test_killtr.lua",
+	"test_lootclaim.lua",
 }
 
 for _, f in ipairs(files) do
