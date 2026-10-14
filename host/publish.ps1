@@ -547,6 +547,7 @@ foreach ($n in @($localMods | Where-Object { $isNew.ContainsKey($_) })) {
     if ($Yes) { $ok = $true }
     elseif (-not $NoPrompt) {
         $a = Read-Host "Новый мод в секции: '$n'. Публиковать? (y/N)"
+        $a = ([string]$a).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
         $ok = ($a -match '^(y|yes|д|да)$')
     }
     if (-not $ok) { $skipNew += $n; Write-Host "  не публикуется (новый, не подтверждён): $n" -ForegroundColor DarkYellow }
@@ -627,6 +628,7 @@ if (-not (Same-Seq $pubList $headList) -or $headSection -cne $section) {
     if (-not $desc -and -not $NoPrompt) {
         Write-Host ""
         $desc = Read-Host "Описание изменений (Enter - автоматически)"
+        $desc = ([string]$desc).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
     }
     # PS 5.1 mangles embedded double quotes in native args
     if ($desc) { $desc = $desc.Replace('"', "'").Trim() }
@@ -691,6 +693,7 @@ if (-not (Same-Seq $pubList $headList) -or $headSection -cne $section) {
     Write-Host "Сборка: $($run.url)  ($($run.status))" -ForegroundColor Cyan
     if ($NoPrompt) { Quit 0 }
     $ans = Read-Host "Следить за сборкой? (y/N)"
+    $ans = ([string]$ans).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
     if ($ans -notmatch '^(y|yes|д|да)$') { Quit 0 }
 
     $ErrorActionPreference = 'Continue'

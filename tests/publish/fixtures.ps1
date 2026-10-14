@@ -73,7 +73,8 @@ function Invoke-Proc {
     $p = [Diagnostics.Process]::Start($psi)
     $outTask = $p.StandardOutput.ReadToEndAsync()
     $errTask = $p.StandardError.ReadToEndAsync()
-    if ($Stdin) { $p.StandardInput.Write($Stdin) }
+    # bytes straight to the pipe: StreamWriter adds a UTF-8 BOM when the console code page is 65001 (GitHub runners)
+    if ($Stdin) { $bin = [Text.Encoding]::ASCII.GetBytes($Stdin); $p.StandardInput.BaseStream.Write($bin, 0, $bin.Length); $p.StandardInput.BaseStream.Flush() }
     $p.StandardInput.Close()
     $code = $null
     if (-not $p.WaitForExit($TimeoutSec * 1000)) {
