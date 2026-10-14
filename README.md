@@ -76,7 +76,7 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
 `FX-*` — наши фиксы, `MOD-*` — сторонние или переработанные моды. Заметки к отдельным модам:
-- **Combined GAMMA NPC Loot Claim** — описание автора (SDD) в [истории репозитория](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/blob/3f1d61e/mods/Combined%20GAMMA%20NPC%20Loot%20Claim%20v.1.2.1/SDD.md). Скрипты базового NPC Loot Claim
+- **Combined GAMMA NPC Loot Claim** — устройство, настройки MCM и план проверки от автора — в спеке [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md). Скрипты базового NPC Loot Claim
   (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками.
 
 ## Для разработки
