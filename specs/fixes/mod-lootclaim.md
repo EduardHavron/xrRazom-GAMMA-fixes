@@ -1,9 +1,9 @@
 # MOD-LOOTCLAIM: право на лут (Combined GAMMA NPC Loot Claim v1.2.x)
-Статус: действует        Мод: `Combined GAMMA NPC Loot Claim v.1.2.1` (версия в имени папки; тесты берут имя из `pack.json`)        Скрипты: `gamedata/scripts/grok_loot_claim.script`, `gamedata/scripts/grok_loot_claim_mcm.script`
+Статус: действует        Мод: `Combined GAMMA NPC Loot Claim v.1.2` (версия в имени папки; тесты берут имя из `pack.json`)        Скрипты: `gamedata/scripts/grok_loot_claim.script`, `gamedata/scripts/grok_loot_claim_mcm.script`
 Где ставить: оба (через секцию «xrRazom Sync»)        Зависит от: `G.A.M.M.A. NPC Loot Claim Remade` (ниже по приоритету), MCM (необязательно), xrRazom (необязательно), `z_auto_looter` (необязательно)        Лог-маркер: `[grok_loot_claim] ...` (только при `debug`)
 
 Сторонний мод, а не фикс xrRazom: целиком заменяет `grok_loot_claim.script` базового мода и добавляет поддержку коопа.
-Авторское описание устройства (SDD, план проверки, история версий) лежит рядом с модом: [`mods/Combined GAMMA NPC Loot Claim v.1.2.1/SDD.md`](../../mods/Combined%20GAMMA%20NPC%20Loot%20Claim%20v.1.2.1/SDD.md). Этот документ — требования с ID для тестов; при расхождении с SDD сверяться с кодом и править оба.
+Авторское описание устройства (SDD, план проверки, история версий) было в папке мода `v.1.2.1` и при публикации `v.1.2` (коммит 23f28bd) из репозитория ушло; копия в истории: [SDD.md @ 3f1d61e](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/blob/3f1d61e/mods/Combined%20GAMMA%20NPC%20Loot%20Claim%20v.1.2.1/SDD.md). Этот документ — требования с ID для тестов; при расхождении с SDD сверяться с кодом и править оба.
 
 ## Проблема
 В G.A.M.M.A. «право на лут» обеспечивают `npc_loot_claim` / `zz_npc_loot_claim_softcore` / `grok_loot_claim` из базового мода.
@@ -120,7 +120,7 @@ companions_are_player=true, block_autolooter=true, debug=false`.
 - Из SDD автора: `HasValuableLoot` не сохраняется — после загрузки NPC игнорируют тела, умершие до загрузки; чужое убийство может
   обыскать любой NPC, не только убийца; «игрок облутал» = нажатие Use/автолутера, а не взятие предмета; пустое тело не вызывает
   `npc_on_get_all_from_corpse` и остаётся закрытым для игрока; моды, забирающие вещи без Use и без `z_auto_looter`, обходят претензию.
-- Файл `SDD.md` лежит в папке мода и уходит пирам вместе с модом (вне `gamedata/`, на игру и проверку модов не влияет).
+- В текущей папке мода `SDD.md` нет (см. ссылку на историю в начале документа).
 - **Пир считает правила сам.** Мод работает на каждой машине независимо. У пира трупы приходят «зеркалами», и (по наблюдениям
   для FX-KILLTR, не проверено для этого мода) колбэк смерти приходит с убийцей = персонаж пира. Тогда у пира почти любое тело
   попадает в `player_kills`, а `claimed` пуст — пир не блокируется на чужих убийствах, в отличие от хоста. Блокировка NPC

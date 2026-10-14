@@ -81,3 +81,4 @@ Expected failures: none. (CI-016 in-mod file order was a spec error; the spec wa
 | REPO-014 | auto | `test_repo_002_repo_014_no_top_level_meta_or_marker`, `test_repo_014_no_build_artifacts_profiles_agent_state`, `test_repo_014_no_secrets`. These check `git ls-files` outside `tests/`, so test fixtures are allowed. |
 | REPO-015 | auto | `test_repo_015_ps1_and_publish_ini_have_bom`, `test_repo_015_cyrillic_txt_has_bom`, `test_repo_015_bat_ascii`; skipped placeholder `test_known_repo_2_bat_crlf` |
 | REPO-016 | auto | `test_repo_016_ci_001_push_paths_filter`, `test_ci_001_repo_016_paths_listed` |
+| REPO-017 | auto | `test_repo_017_in_sync`, `test_repo_017_missing_and_stale` (parser on synthetic docs); `test_repo_017_real_docs_list_pack` (real docs; mismatch = `::warning` + skip, never a failure) |

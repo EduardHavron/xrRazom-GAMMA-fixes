@@ -71,11 +71,12 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 | zz xrRazom Fix - Remember Belt | Remember Outfit Belt помнит пояс пира после переподключения | хост и пир | [FX-BELT](specs/fixes/fx-belt.md) |
 | zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | [FX-PARTS](specs/fixes/fx-parts.md) |
 | zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | [FX-KILLTR](specs/fixes/fx-killtr.md) |
+| zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | [FX-LEDGE](specs/fixes/fx-ledge.md) |
 | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
-| Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
+| Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
 `FX-*` — наши фиксы, `MOD-*` — сторонние или переработанные моды. Заметки к отдельным модам:
-- **Combined GAMMA NPC Loot Claim** — описание автора лежит в `SDD.md` в папке мода. Скрипты базового NPC Loot Claim
+- **Combined GAMMA NPC Loot Claim** — описание автора (SDD) в [истории репозитория](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/blob/3f1d61e/mods/Combined%20GAMMA%20NPC%20Loot%20Claim%20v.1.2.1/SDD.md). Скрипты базового NPC Loot Claim
   (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками.
 
 ## Для разработки

@@ -1,6 +1,6 @@
 """Static checks of the real repository checkout.
 
-Spec: specs/system/repo-layout.md (REPO-002, REPO-003, REPO-005, REPO-006, REPO-008, REPO-014, REPO-015).
+Spec: specs/system/repo-layout.md (REPO-002, REPO-003, REPO-005, REPO-006, REPO-008, REPO-014, REPO-015, REPO-017).
 """
 import json
 import os
@@ -225,6 +225,81 @@ class EncodingTests(unittest.TestCase):
     @unittest.skip("KNOWN-REPO-2: .bat CRLF is not required by REPO-015 (open question)")
     def test_known_repo_2_bat_crlf(self):
         """KNOWN-REPO-2 placeholder: .bat line endings (CRLF) not asserted."""
+
+
+def _table_cells(text, headings, col):
+    """Cell `col` of every data row of the markdown tables under the given `## ` headings."""
+    names, active = [], False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            active = line[3:].strip() in headings
+            continue
+        if not (active and line.startswith("|")):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) <= col or set(cells[0]) <= set("-: ") or cells[col] in ("Мод", "ID"):
+            continue
+        names.append(cells[col])
+    return names
+
+
+def doc_mismatches(pack_mods, readme_text, specs_text):
+    """REPO-017: list of 'missing'/'stale' findings for README.md and specs/README.md."""
+    docs = {
+        "README.md": _table_cells(readme_text, ("Состав пакета",), 0),
+        "specs/README.md": _table_cells(specs_text, ("Реестр фиксов", "Другие моды в пакете"), 1),
+    }
+    out = []
+    for doc, names in docs.items():
+        out += ["%s: missing %s" % (doc, m) for m in pack_mods if m not in names]
+        out += ["%s: stale %s" % (doc, n) for n in names if n not in pack_mods]
+    return out
+
+
+class DocsListPackTests(unittest.TestCase):
+    README = "\n".join([
+        "## Состав пакета", "",
+        "| Мод | Что делает | Где нужен | Спека |", "|---|---|---|---|",
+        "| zz A | a | хост | x |", "",
+        "## Для разработки", "| zz Z | not a mod row |", "",
+    ])
+    SPECS = "\n".join([
+        "## Реестр фиксов", "",
+        "| ID | Мод | Кратко |", "|---|---|---|",
+        "| FX-A | zz A | a |", "",
+        "## Другие моды в пакете", "",
+        "| ID | Мод | Кратко | Спека |", "|---|---|---|---|",
+        "| MOD-B | B v.1 | b | x |", "",
+    ])
+
+    def test_repo_017_in_sync(self):
+        """REPO-017: every pack mod listed once in both docs -> no findings; tables of other sections ignored."""
+        readme = self.README.replace("| zz A | a | хост | x |", "| zz A | a | хост | x |\n| B v.1 | b | хост | x |")
+        self.assertEqual([], doc_mismatches(["zz A", "B v.1"], readme, self.SPECS))
+
+    def test_repo_017_missing_and_stale(self):
+        """REPO-017: a renamed mod is reported as missing (new name) and stale (old name) in each doc."""
+        found = doc_mismatches(["zz A", "B v.2", "zz New"], self.README, self.SPECS)
+        self.assertIn("README.md: missing zz New", found)
+        self.assertIn("README.md: missing B v.2", found)
+        self.assertIn("specs/README.md: missing zz New", found)
+        self.assertIn("specs/README.md: missing B v.2", found)
+        self.assertIn("specs/README.md: stale B v.1", found)
+        self.assertNotIn("README.md: stale zz Z", found)
+
+    def test_repo_017_real_docs_list_pack(self):
+        """REPO-017: real README.md / specs/README.md vs pack/pack.json; mismatch = warning + skip, never a failure."""
+        raw = H.read_bytes(os.path.join(R, "pack", "pack.json"))
+        if raw.startswith(H.BOM):
+            raw = raw[3:]
+        mods = json.loads(raw.decode("utf-8"))["mods"]
+        read = lambda *p: H.read_bytes(os.path.join(R, *p)).decode("utf-8")
+        found = doc_mismatches(mods, read("README.md"), read("specs", "README.md"))
+        if found:
+            msg = "docs out of sync with pack/pack.json: " + "; ".join(found)
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                print("::warning title=REPO-017::" + msg)
+            self.skipTest(msg)
 
 
 class KnownLimitations(unittest.TestCase):

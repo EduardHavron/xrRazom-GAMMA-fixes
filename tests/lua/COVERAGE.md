@@ -51,6 +51,13 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-KILLTR-004 | FX-KILLTR-004 host/solo and non-actor killers always reach the original | test_killtr.lua |
 | FX-KILLTR-005 | FX-KILLTR-005 (a) mod registered first; (b) mod registers after the fix | test_killtr.lua |
 | FX-KILLTR-006, -007 | manual | |
+| FX-LEDGE-001 | FX-LEDGE-001 Anti-Lag updater checks on every update without jump held; stub sanity without the fix; repeated level loads do not register twice | test_ledge.lua |
+| FX-LEDGE-002 | FX-LEDGE-002 updater calls the current module checkLedgeGrabbing | test_ledge.lua |
+| FX-LEDGE-003 | FX-LEDGE-003 second on_game_start keeps the same updater and logs once | test_ledge.lua |
+| FX-LEDGE-004 | FX-LEDGE-004 original Demonized script untouched; no Ledge Grabbing module | test_ledge.lua |
+| FX-LEDGE-005 | FX-LEDGE-005 error while patching is caught and logged | test_ledge.lua |
+| FX-LEDGE-006 | FX-LEDGE-006 DLTX override sets only jump_speed = 6.85; file sorts after the xrRazom actor config | test_ledge.lua |
+| FX-LEDGE-007, -008 | manual | |
 
 ### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim, folder name read from pack.json) — test_lootclaim.lua
 
@@ -91,3 +98,5 @@ and disabling the release after NPC loot each made the matching cases fail.
 - `utils_data.string2hex`/`hex2string` and `marshal` are pure-Lua stand-ins. `hex2string` raises an error on non-hex input.
 - `XRR_TEST_ROOT=<dir>` points the loader at another `mods/` tree. It was used once to confirm that a deliberately broken fix
   makes the matching case fail.
+  FX-LEDGE was checked the same way: 6 mutations (no replacement, stale function reference, no pcall, no idempotency flag,
+  jump 6.0, `[actor]` without DLTX `!`), each failed exactly its requirement's cases.

@@ -60,7 +60,7 @@ specs/
 
 ```markdown
 # FX-<КОД>: <название>
-Статус: действует        Мод: `zz xrRazom Fix - ...`        Скрипт: `gamedata/scripts/<file>.script`
+Статус: действует        Мод: `zz xrRazom Fix - ...`        Скрипт: `gamedata/scripts/<file>.script`[, конфиг: `gamedata/configs/mod_system_<file>.ltx`]
 Где ставить: хост | пир | оба        Зависит от: <моды/версии>        Лог-маркер: `[XRRFIX] ...`
 
 ## Проблема            (симптом глазами игрока)
@@ -87,6 +87,7 @@ specs/
 | FX-PARTS | zz xrRazom Fix - Weapon Parts Tooltip | вылет пира на подсказке оружия из трупа |
 | FX-WSAMMO | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы |
 | FX-KILLTR | zz xrRazom Fix - Kill Tracker Mirror Corpses | метки КПК: трупы-зеркала не «убиты пиром» |
+| FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag и прыжок GAMMA в коопе |
 
 ## Другие моды в пакете
 
@@ -95,4 +96,4 @@ specs/
 
 | ID | Мод | Кратко | Спека |
 |---|---|---|---|
-| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |
+| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |
