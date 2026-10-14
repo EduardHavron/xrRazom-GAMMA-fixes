@@ -70,10 +70,16 @@ function Invoke-Proc {
         if ($null -eq $Env[$k]) { $psi.EnvironmentVariables.Remove($k) } else { $psi.EnvironmentVariables[$k] = [string]$Env[$k] }
     }
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $p = [Diagnostics.Process]::Start($psi)
+    # .NET Framework creates the child's stdin writer with Console.InputEncoding and AutoFlush, which writes the
+    # encoding preamble at once: with a UTF-8 console (GitHub runners) the child reads a BOM before our input.
+    # ASCII has no preamble, so switch to it just for the start.
+    $prevIn = $null
+    try { $prevIn = [Console]::InputEncoding; [Console]::InputEncoding = [Text.Encoding]::ASCII } catch { $prevIn = $null }
+    try { $p = [Diagnostics.Process]::Start($psi) }
+    finally { if ($prevIn) { try { [Console]::InputEncoding = $prevIn } catch {} } }
     $outTask = $p.StandardOutput.ReadToEndAsync()
     $errTask = $p.StandardError.ReadToEndAsync()
-    # bytes straight to the pipe: StreamWriter adds a UTF-8 BOM when the console code page is 65001 (GitHub runners)
+    # bytes straight to the pipe (no encoder involved)
     if ($Stdin) { $bin = [Text.Encoding]::ASCII.GetBytes($Stdin); $p.StandardInput.BaseStream.Write($bin, 0, $bin.Length); $p.StandardInput.BaseStream.Flush() }
     $p.StandardInput.Close()
     $code = $null

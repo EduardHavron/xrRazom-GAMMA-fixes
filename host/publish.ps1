@@ -547,7 +547,7 @@ foreach ($n in @($localMods | Where-Object { $isNew.ContainsKey($_) })) {
     if ($Yes) { $ok = $true }
     elseif (-not $NoPrompt) {
         $a = Read-Host "Новый мод в секции: '$n'. Публиковать? (y/N)"
-        $a = ([string]$a).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
+        $a = (([string]$a) -replace '^[^\p{L}]+', '').Trim()  # redirected stdin may start with a BOM (in any code page)
         $ok = ($a -match '^(y|yes|д|да)$')
     }
     if (-not $ok) { $skipNew += $n; Write-Host "  не публикуется (новый, не подтверждён): $n" -ForegroundColor DarkYellow }
@@ -693,7 +693,7 @@ if (-not (Same-Seq $pubList $headList) -or $headSection -cne $section) {
     Write-Host "Сборка: $($run.url)  ($($run.status))" -ForegroundColor Cyan
     if ($NoPrompt) { Quit 0 }
     $ans = Read-Host "Следить за сборкой? (y/N)"
-    $ans = ([string]$ans).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
+    $ans = (([string]$ans) -replace '^[^\p{L}]+', '').Trim()  # redirected stdin may start with a BOM (in any code page)
     if ($ans -notmatch '^(y|yes|д|да)$') { Quit 0 }
 
     $ErrorActionPreference = 'Continue'
