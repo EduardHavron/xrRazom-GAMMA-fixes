@@ -1,50 +1,86 @@
 # xrRazom GAMMA fixes
 
-Локальные фиксы для кооператива [xrRazom](https://www.moddb.com/mods/xrrazom-stalker-anomaly-co-op) 1.4 на сборке S.T.A.L.K.E.R. G.A.M.M.A.
-Хост публикует фиксы сюда, GitHub Actions проверяет и собирает релиз, у пира фоновый агент сам ставит новые версии.
+Фиксы и моды для кооператива [xrRazom](https://www.moddb.com/mods/xrrazom-stalker-anomaly-co-op) 1.4 на сборке S.T.A.L.K.E.R. G.A.M.M.A.
+Любой из игроков публикует свою секцию модов сюда, GitHub Actions прогоняет тесты и собирает релиз, у остальных фоновый агент
+сам ставит новую версию.
 
 ## Как это устроено
 
 ```
-хост: MO2, секция "xrRazom Sync"  ──host/publish.bat──▶  main (mods/, pack/pack.json)
-                                                             │ GitHub Actions: проверка Lua + сборка
-                                                             ▼
-                                                   Release vГГГГ.ММ.ДД-N (xrRazom_fixes.zip)
-                                                             │ каждые 10 минут
-                                                             ▼
-пир: агент (Планировщик заданий) ──installer/install.ps1──▶ MO2 пира, только секция "xrRazom Sync"
+MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pack/pack.json)
+  (хост или друг)                                    │ GitHub Actions: тесты → проверка Lua → сборка
+                                                     ▼
+                                       Release vГГГГ.ММ.ДД-N (xrRazom_fixes.zip) + уведомление в Discord
+                                                     │ агент, каждые 10 минут
+                     ┌───────────────────────────────┴───────────────────────────────┐
+                     ▼                                                               ▼
+   пир без клона: скачивает релиз                                хост с клоном: publish.ps1 -SyncOnly
+   → installer/install.ps1                                       (git, догон чужих изменений)
+                     └────────────── MO2, только секция "xrRazom Sync" ──────────────┘
 ```
 
-- В пакет идут **только включённые моды из секции-разделителя** «xrRazom Sync» в профиле хоста.
-- У пира установщик пересобирает **только эту секцию**. Чужие и тестовые моды не трогаются: если такой мод оказался
-  внутри секции, он сохраняет своё состояние и переносится сразу под разделитель. Наши старые фиксы, которых больше нет
-  в пакете, выключаются.
-- xrRazom всё равно сверяет набор модов хоста и пира при входе, так что расхождение будет сразу видно.
+- В пакет идут **только включённые моды из секции-разделителя** «xrRazom Sync».
+- У получателя установщик пересобирает **только эту секцию**. Чужие и тестовые моды не выключаются: если такой мод
+  оказался внутри секции, он сохраняет своё состояние и переносится сразу под разделитель. Наши старые моды, которых больше
+  нет в пакете, выключаются.
+- Файлы хранятся побайтно (`.gitattributes`: `* -text`): xrRazom при входе сверяет моды хоста и пира, и любое расхождение
+  в байтах не пустит в игру.
+- `N` в версии — сквозной номер запуска GitHub Actions, а не счётчик за день.
 
-## Хост
+## Публикация (хост или друг)
 
-1. В MO2: правый клик → *Create Separator* → `xrRazom Sync`, перетащить в него фиксы (`zz ...`).
-2. После любых изменений фиксов: `host\publish.bat` — скопирует секцию в `mods/`, сделает коммит и push.
-3. Через минуту-две в [Releases](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/releases) появится новая версия.
-   Если проверка Lua упала — релиза не будет, ошибка видна в [Actions](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/actions).
+1. Один раз в MO2: правый клик → *Create Separator* → `xrRazom Sync`, перетащить в него моды для синхронизации.
+2. После любых изменений: `host\publish.bat` из клона репозитория. Нужен git; `gh` — по желанию (ссылка на сборку и слежение за ней).
 
-## Пир
+Что делает публикация:
+- сравнивает каждый мод в трёх версиях: у вас в MO2, при последней синхронизации и на GitHub;
+- **сначала догоняет**: чужие изменения с GitHub ставятся в ваш MO2 (MO2 нужно закрыть), ваши неопубликованные правки сохраняются;
+- **публикует только ваши изменения**, нетронутые моды не перезаписывает — откатить чужую правку нельзя;
+- **конфликт** (один мод изменили оба) — останавливается, ничего не отправляет и подсказывает, как решить:
+  `publish.bat -TakeRemote "<мод>"` (взять версию с GitHub) или `publish.bat -TakeLocal "<мод>"` (оставить свою), `*` — для всех;
+- **новый мод** в секции публикует только после подтверждения (`y`), без вопросов — с `-Yes`.
 
-Один раз: скачать репозиторий (*Code → Download ZIP*), распаковать, запустить `agent\setup_agent.bat`.
-Дальше обновления ставятся сами, когда Mod Organizer и игра закрыты. Подробнее — `agent\README.txt`.
+Через пару минут в [Releases](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/releases) появляется версия.
+Если тесты или проверка Lua упали, релиза не будет; ошибка видна в [Actions](https://github.com/EduardHavron/xrRazom-GAMMA-fixes/actions)
+и приходит в Discord. Пушить могут владелец и соавторы репозитория.
+
+## Агент автообновления
+
+Один раз запустить `agent\setup_agent.bat` (из скачанного репозитория или из клона). Дальше раз в 10 минут, когда Mod Organizer
+и игра закрыты:
+- **без клона** — скачивает последний релиз и ставит его;
+- **с клоном репозитория рядом с GAMMA** (режим хоста) — запускает `publish.ps1 -SyncOnly`: подтягивает чужие изменения
+  и обновления самих скриптов, при конфликте показывает уведомление.
+
+Агент обновляет сам себя: из клона или из релиза. Подробнее — `agent\README.txt`.
 
 Без агента: скачать `xrRazom_fixes.zip` из последнего релиза, распаковать, закрыть MO2, запустить `install.bat`.
 
-## Фиксы
+## Состав пакета
 
-| Мод | Что чинит |
+### Фиксы
+
+| Мод | Что чинит | Спека |
+|---|---|---|
+| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий не доходили до пира | [FX-QVARS](specs/fixes/fx-qvars.md) |
+| zz xrRazom Fix - Taskboard Peer Details | у пира пустые карточки в PDA Taskboard Redesign | [FX-TBOARD](specs/fixes/fx-tboard.md) |
+| zz xrRazom Fix - Turned-in Task Sync | пир заново получал уже сданные повторяемые задания | [FX-TURNIN](specs/fixes/fx-turnin.md) |
+| zz xrRazom Fix - Fetch Reward | неверная награда за задания «принеси» (переплата/недоплата) | [FX-FETCH](specs/fixes/fx-fetch.md) |
+| zz xrRazom Fix - Laser State | лазеры пира выключались после переподключения | [FX-LASER](specs/fixes/fx-laser.md) |
+| zz xrRazom Fix - Remember Belt | Remember Outfit Belt терял пояс у пира после переподключения | [FX-BELT](specs/fixes/fx-belt.md) |
+| zz xrRazom Fix - Weapon Parts Tooltip | вылет пира при наведении на оружие в трупе (Momopate's Barrel Condition) | [FX-PARTS](specs/fixes/fx-parts.md) |
+| zz Workshop Ammo Material Fix | верстак не списывал одну коробку материала (не xrRazom, работает и в соло) | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
+| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA помечал все трупы-зеркала как убитые пиром | [FX-KILLTR](specs/fixes/fx-killtr.md) |
+
+### Другие моды
+
+| Мод | Что это |
 |---|---|
-| zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий не доходили до пира |
-| zz xrRazom Fix - Taskboard Peer Details | у пира пустые карточки в PDA Taskboard Redesign |
-| zz xrRazom Fix - Turned-in Task Sync | пир заново получал уже сданные повторяемые задания |
-| zz xrRazom Fix - Fetch Reward | неверная награда за задания «принеси» (переплата/недоплата) |
-| zz xrRazom Fix - Laser State | лазеры пира выключались после переподключения |
-| zz xrRazom Fix - Remember Belt | Remember Outfit Belt терял пояс у пира после переподключения |
-| zz xrRazom Fix - Weapon Parts Tooltip | вылет пира при наведении на оружие в трупе (Momopate's Barrel Condition) |
-| zz Workshop Ammo Material Fix | верстак не списывал одну коробку материала (не xrRazom, работает и в соло) |
-| zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA помечал все трупы-зеркала как убитые пиром |
+| Combined GAMMA NPC Loot Claim v.1.2 | «право на лут» с настройкой через MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира в коопе считаются убийствами игрока. Скрипты базового NPC Loot Claim (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками (см. заголовок `grok_loot_claim.script`). Спецификации пока нет |
+
+## Для разработки
+
+- `specs/` — спецификации (SDD): как работают публикация, CI, установщик, агент и каждый фикс. Сначала меняется спека,
+  потом код и тесты. Правила и реестр ID — `specs/README.md`.
+- `tests/` — автотесты по требованиям спецификаций; запускаются в GitHub Actions на каждый push, без зелёных тестов релиза нет.
+  Как запустить локально — `tests/README.md`.
