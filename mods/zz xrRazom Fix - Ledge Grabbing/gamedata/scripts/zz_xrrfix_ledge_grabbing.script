@@ -1,0 +1,35 @@
+--[[
+  xrRazom fix: Ledge Grabbing (Demonized) grabs far less often with Anti_Lag_for_GAMMA.
+  Install on the host and every peer (works in solo too).
+
+  Anti-Lag ships its own demonized_ledge_grabbing.script: instead of checkLedgeGrabbing
+  on every actor_on_update it registers ledge_grabbing_smart_hold_updater, which only
+  looks for a ledge after jump has been held for jumpTriggerTime. By then the actor is in
+  the air, low ledges fall below the search window and the climb only fires while still
+  rising. xrRazom also lowers jump_speed (6.85 -> 6.0), which shortens that window
+  further; the ltx next to this script restores the jump.
+  Fix: replace the module's ledge_grabbing_smart_hold_updater (looked up by name when
+  Anti-Lag's actor_on_first_update registers it) with continuous detection, as in the
+  original mod. Without the Anti-Lag version nothing is changed.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local function install()
+	local lg = demonized_ledge_grabbing
+	if not (lg and lg.ledge_grabbing_smart_hold_updater and lg.checkLedgeGrabbing) then
+		L("ledge: Anti-Lag ledge script not found, nothing to do")
+		return
+	end
+	if lg.__xrrfix_continuous then return end
+	lg.__xrrfix_continuous = true
+	lg.ledge_grabbing_smart_hold_updater = function()
+		return demonized_ledge_grabbing.checkLedgeGrabbing()
+	end
+	L("ledge: continuous ledge detection restored")
+end
+
+function on_game_start()
+	local ok, err = pcall(install)
+	if not ok then L("ledge: patch failed: %s", tostring(err)) end
+end
