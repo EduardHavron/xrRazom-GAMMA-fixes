@@ -1,0 +1,124 @@
+--[[
+  xrRazom 1.4 fix: FPS drop on the host when a peer presses Refresh in the PDA Taskboard.
+  Install on the host (does nothing on a peer or in solo).
+
+  The peer's Taskboard refresh asks the host for the quest list of every nearby NPC at
+  once (xrr_request_task_availability -> SendQuestListRequest per NPC; 37-75 requests at
+  the Freedom base). The host answers each in _G.OnQuestListRequest, which generates the
+  NPC's tasks synchronously, so the whole burst lands in one host frame (xrRazom itself
+  notes that a cold ~20-NPC scan costs the host over a second).
+  Fix: on the host, a lone request still runs at once (dialogs are not delayed); requests
+  that arrive while one already ran since the last actor_on_update are queued and run
+  from actor_on_update within a time budget per update (at least one per update).
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local BUDGET_MS = 8
+
+local queue = {}          -- FIFO of { conn, npc }
+local queued = {}         -- "conn:npc" -> true while in the queue
+local window_ms = 0       -- time spent on requests since the last actor_on_update
+local window_n = 0
+local window_max = 0
+local batch = nil         -- { n, dup, updates, total, max } while a burst is being drained
+
+local orig = nil
+
+local function key(conn, npc) return tostring(conn) .. ":" .. tostring(npc) end
+
+local function now_ms()
+	return os.clock() * 1000
+end
+
+-- Runs one request through the original handler; returns the time it took in ms.
+local function run(conn, npc)
+	local ms
+	local t = profile_timer and profile_timer()
+	local c0 = not t and now_ms()
+	if t then t:start() end
+	local ok, err = pcall(orig, conn, npc)
+	if t then
+		t:stop()
+		ms = t:time() / 1000
+	else
+		ms = now_ms() - c0
+	end
+	if not ok then L("questq: request error: %s", tostring(err)) end
+	window_ms = window_ms + ms
+	window_n = window_n + 1
+	if ms > window_max then window_max = ms end
+	if batch then
+		batch.n = batch.n + 1
+		batch.total = batch.total + ms
+		if ms > batch.max then batch.max = ms end
+	end
+	return ms
+end
+
+local function finish_batch()
+	if batch and #queue == 0 then
+		L("questq: %d requests (%d duplicates) over %d updates, total %.0f ms, max %.0f ms",
+			batch.n, batch.dup, batch.updates, batch.total, batch.max)
+		batch = nil
+	end
+end
+
+local function on_request(conn, npc, ...)
+	if not (XrrIsHost and XrrIsHost()) then
+		return orig(conn, npc, ...)
+	end
+	if #queue == 0 and window_n == 0 then
+		run(conn, npc)
+		return
+	end
+	local k = key(conn, npc)
+	if not batch then
+		-- the request already run in this window started the burst
+		batch = { n = window_n, dup = 0, updates = 0, total = window_ms, max = window_max }
+	end
+	if queued[k] then
+		batch.dup = batch.dup + 1
+		return
+	end
+	queued[k] = true
+	queue[#queue + 1] = { conn, npc }
+end
+
+local function drain()
+	window_ms, window_n, window_max = 0, 0, 0
+	if #queue == 0 then return end
+	batch.updates = batch.updates + 1
+	repeat
+		local r = table.remove(queue, 1)
+		queued[key(r[1], r[2])] = nil
+		run(r[1], r[2])
+	until #queue == 0 or window_ms >= BUDGET_MS
+	finish_batch()
+end
+
+local function clear()
+	if #queue > 0 then L("questq: level change, %d queued requests dropped", #queue) end
+	queue, queued, batch = {}, {}, nil
+	window_ms, window_n, window_max = 0, 0, 0
+end
+
+local function install()
+	local _ = xrr_patch_quests -- force-load so its _G handler exists before wrapping
+	local cur = _G.OnQuestListRequest
+	if type(cur) ~= "function" then
+		L("questq: _G.OnQuestListRequest missing, skipped")
+		return
+	end
+	if cur == on_request then return end
+	orig = cur
+	_G.OnQuestListRequest = on_request
+	RegisterScriptCallback("actor_on_update", drain)
+	RegisterScriptCallback("on_level_changing", clear)
+	L("questq: OnQuestListRequest queued on host (budget %d ms per update)", BUDGET_MS)
+end
+
+function on_game_start()
+	local ok, err = pcall(install)
+	if not ok then L("questq: install error: %s", tostring(err)) end
+end

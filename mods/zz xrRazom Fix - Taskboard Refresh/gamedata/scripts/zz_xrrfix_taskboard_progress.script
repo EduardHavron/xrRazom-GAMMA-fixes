@@ -1,0 +1,115 @@
+--[[
+  xrRazom 1.4 fix: a peer's PDA Taskboard shows tasks as the host answers, not after the
+  last answer. Install on every peer (does nothing on the host and in solo).
+
+  xrRazom's Taskboard refresh on a peer (xrr_patch_pda_taskboard.on_refresh_clicked)
+  asks the host for every nearby NPC's quest list and redraws once, when all answers are
+  in or after a 5 s timeout. Each answer (OnQuestListResponse) is stored per NPC, and the
+  peer's generate_available_tasks only filters that stored list, so a redraw is cheap.
+  Fix: while a refresh is in flight, redraw the board (categories + task list, scroll
+  kept) at most every 0.5 s as answers arrive, and once more when the batch completes.
+  The refreshed NPCs' old lists are cleared first, so the board shows only fresh answers.
+]]
+
+local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+
+local REDRAW_MS = 500
+
+local tab = nil           -- taskboard tab that started the refresh in flight
+local in_flight = false
+local dirty = false
+local last_redraw = -REDRAW_MS
+local redraws = 0
+local error_logged = false
+
+local function is_peer()
+	return XrrIsClient and XrrIsClient() or false
+end
+
+local function redraw()
+	if not (tab and not tab.destroyed) then return end
+	local ok, err = pcall(function()
+		local list = tab.task_list
+		local pos = list and list.GetCurrentScrollPos and list:GetCurrentScrollPos()
+		pda_taskboard.refresh_tasks()
+		tab:DrawCategoryList()
+		tab:RefreshTaskList(tab.current_category)
+		if pos and list.SetScrollPos then
+			local max = list.GetMaxScrollPos and list:GetMaxScrollPos() or pos
+			list:SetScrollPos(math.min(pos, max))
+		end
+	end)
+	if not ok and not error_logged then
+		error_logged = true
+		L("taskboard: redraw error: %s", tostring(err))
+	end
+	redraws = redraws + 1
+	last_redraw = time_global()
+	dirty = false
+end
+
+local function on_update()
+	if in_flight and dirty and time_global() - last_redraw >= REDRAW_MS then
+		redraw()
+	end
+end
+
+local function patch()
+	local _ = xrr_patch_quests -- force-load: its _G exports must exist before wrapping
+	if xrr_patch_pda_taskboard and xrr_patch_pda_taskboard.on_game_start then
+		xrr_patch_pda_taskboard.on_game_start() -- idempotent; puts xrRazom's refresh in place first
+	end
+	local cls = ui_pda_taskboard_tab and ui_pda_taskboard_tab.pda_taskboard_tab
+	local req, resp = _G.xrr_request_task_availability, _G.OnQuestListResponse
+	if not (cls and cls.OnBtnRefreshClicked and pda_taskboard and pda_taskboard.refresh_tasks
+		and type(req) == "function" and type(resp) == "function") then
+		L("taskboard: Taskboard or xrRazom quest sync not found, progressive refresh skipped")
+		return
+	end
+	if cls.__xrrfix_progressive then return end
+	cls.__xrrfix_progressive = true
+
+	local orig_click = cls.OnBtnRefreshClicked
+	cls.OnBtnRefreshClicked = function(self, ...)
+		if is_peer() then tab = self end
+		return orig_click(self, ...)
+	end
+
+	_G.xrr_request_task_availability = function(ids, on_complete, ...)
+		if not is_peer() then return req(ids, on_complete, ...) end
+		local started
+		started = req(ids, function(...)
+			-- runs synchronously for an empty list, before `started` is known
+			local r = on_complete and on_complete(...)
+			if in_flight or started == nil then
+				L("taskboard: refresh done, %d progressive redraws", redraws)
+				in_flight = false
+				redraw()
+			end
+			return r
+		end, ...)
+		if started then
+			local full = _G.xrr_quest_avail_full
+			if full then
+				for _, id in ipairs(ids or {}) do full[id] = nil end
+			end
+			in_flight, dirty, redraws, error_logged = true, false, 0, false
+			last_redraw = time_global()
+		end
+		return started
+	end
+
+	_G.OnQuestListResponse = function(...)
+		local r = resp(...)
+		if in_flight then dirty = true end
+		return r
+	end
+
+	RegisterScriptCallback("actor_on_update", on_update)
+	L("taskboard: progressive refresh installed (redraw every %d ms)", REDRAW_MS)
+end
+
+function on_game_start()
+	local ok, err = pcall(patch)
+	if not ok then L("taskboard: install error: %s", tostring(err)) end
+end
