@@ -58,6 +58,21 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-LEDGE-005 | FX-LEDGE-005 error while patching is caught and logged | test_ledge.lua |
 | FX-LEDGE-006 | FX-LEDGE-006 DLTX override sets only jump_speed = 6.85; file sorts after the xrRazom actor config | test_ledge.lua |
 | FX-LEDGE-007, -008 | manual | |
+| FX-QLIST-001 | FX-QLIST-001 force-loads xrr_patch_quests, wraps once, logs the marker; without the handler: logged and skipped | test_qlist.lua |
+| FX-QLIST-002 | FX-QLIST-002 peer: every call passes straight through with all arguments | test_qlist.lua |
+| FX-QLIST-003 | FX-QLIST-003 lone request on the host runs at once | test_qlist.lua |
+| FX-QLIST-004 | FX-QLIST-004 burst: first runs, the rest wait for actor_on_update | test_qlist.lua |
+| FX-QLIST-005 | FX-QLIST-005 budget: stops at 8 ms, at least one per update; os.clock fallback | test_qlist.lua |
+| FX-QLIST-006 | FX-QLIST-006 duplicates of queued requests are dropped and counted | test_qlist.lua |
+| FX-QLIST-007 | FX-QLIST-007 one summary line per drained burst | test_qlist.lua |
+| FX-QLIST-008 | FX-QLIST-008 original error is logged, the queue keeps draining; level change drops the queue | test_qlist.lua |
+| FX-QLIST-009 | manual | |
+| FX-QLIST-010 | FX-QLIST-010 installs once around xrRazom's refresh; without Taskboard or quest sync: skipped | test_qlist_peer.lua |
+| FX-QLIST-011 | FX-QLIST-011 refreshed NPCs' old lists cleared, others kept; nothing cleared when a batch is busy | test_qlist_peer.lua |
+| FX-QLIST-012 | FX-QLIST-012 redraws at most every 500 ms while answers arrive, keeps the scroll | test_qlist_peer.lua |
+| FX-QLIST-013 | FX-QLIST-013 final redraw after xrRazom's on_complete; empty NPC list completes at once | test_qlist_peer.lua |
+| FX-QLIST-014 | FX-QLIST-014 host: wrappers pass through | test_qlist_peer.lua |
+| FX-QLIST-015 | FX-QLIST-015 redraw errors logged once per refresh; destroyed tab is not redrawn | test_qlist_peer.lua |
 
 ### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim, folder name read from pack.json) — test_lootclaim.lua
 
@@ -100,3 +115,6 @@ and disabling the release after NPC loot each made the matching cases fail.
   makes the matching case fail.
   FX-LEDGE was checked the same way: 6 mutations (no replacement, stale function reference, no pcall, no idempotency flag,
   jump 6.0, `[actor]` without DLTX `!`), each failed exactly its requirement's cases.
+  FX-QLIST: 8 mutations (always immediate, no budget, no dedupe, LIFO, no pcall, no clear on level change, queueing on a
+  peer, double wrap), each caught. Peer half: 9 mutations (no clear, no throttle, no dirty flag,
+  no final redraw, no scroll restore, redraw of a destroyed tab, host not pass-through, double wrap, error log spam), each caught.

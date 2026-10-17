@@ -116,6 +116,7 @@ specs/
 | FX-WSAMMO | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы |
 | FX-KILLTR | zz xrRazom Fix - Kill Tracker Mirror Corpses | метки КПК: трупы-зеркала не «убиты пиром» |
 | FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag и прыжок GAMMA в коопе |
+| FX-QLIST | zz xrRazom Fix - Taskboard Refresh | «Обновить» в Taskboard у пира: без просадки у хоста, задания показываются по мере ответов |
 
 ## Другие моды в пакете
 

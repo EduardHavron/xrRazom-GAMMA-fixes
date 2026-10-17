@@ -22,6 +22,8 @@ local files = {
 	"test_killtr.lua",
 	"test_lootclaim.lua",
 	"test_ledge.lua",
+	"test_qlist.lua",
+	"test_qlist_peer.lua",
 }
 
 for _, f in ipairs(files) do

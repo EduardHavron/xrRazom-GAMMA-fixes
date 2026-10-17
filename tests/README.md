@@ -5,7 +5,7 @@
 | Набор | Что проверяет | Запуск (из корня репозитория) | CI |
 |---|---|---|---|
 | `tests/python` | `.github/scripts/build_pack.py`, workflow-файлы, статика репозитория, `tools/spec_check.py` (CI-*, REPO-*, CHK-*) | `python -m unittest discover -s tests/python -v` | ubuntu |
-| `tests/lua` | десять фиксов и Loot Claim на заглушках игровых API (FX-*, MOD-*) | `luajit tests/lua/run.lua` или локально `python tests/lua/run_local.py` (`pip install lupa`) | ubuntu |
+| `tests/lua` | одиннадцать фиксов и Loot Claim на заглушках игровых API (FX-*, MOD-*) | `luajit tests/lua/run.lua` или локально `python tests/lua/run_local.py` (`pip install lupa`) | ubuntu |
 | `tests/publish` | `host/publish.ps1` и `installer/install.ps1` (PUB-*, INS-*, SYS-*) | `powershell -NoProfile -ExecutionPolicy Bypass -File tests\publish\run.ps1` | windows |
 | `tests/agent` | агент автообновления, включая сквозной сценарий хост/друг (AGT-*) | `powershell -NoProfile -ExecutionPolicy Bypass -File tests\agent\run.ps1` | windows |
 

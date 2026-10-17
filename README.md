@@ -73,6 +73,7 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 | zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | не записана | [FX-PARTS](specs/fixes/fx-parts.md) |
 | zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | не проводилась | [FX-KILLTR](specs/fixes/fx-killtr.md) |
 | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | не проводилась | [FX-LEDGE](specs/fixes/fx-ledge.md) |
+| zz xrRazom Fix - Taskboard Refresh | когда друг жмёт «Обновить» в заданиях PDA, у хоста нет многосекундной просадки FPS, а у друга задания появляются по мере поиска | хост и пир | не проводилась | [FX-QLIST](specs/fixes/fx-qlist.md) |
 | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | не записана | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
 | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | не записана | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
 
