@@ -393,3 +393,23 @@ function Start-MutexHolder([int]$Seconds = 30, [switch]$Abandon) {
     if (-not (Test-Path -LiteralPath $ready)) { throw 'mutex holder did not start' }
     return $p
 }
+
+# Paths and subject of one origin commit; python for PUB-046 (null if none works).
+function Get-CommitPaths($sb, [string]$Rev) {
+    $r = Invoke-Proc 'git.exe' @('--git-dir', $sb.Origin, '-c', 'core.quotepath=false', 'show', '--name-only', '--format=', $Rev)
+    return @($r.Out -split "`n" | Where-Object { $_ } | Sort-Object)
+}
+function Get-CommitSubject($sb, [string]$Rev) {
+    $r = Invoke-Proc 'git.exe' @('--git-dir', $sb.Origin, 'log', '-1', '--format=%s', $Rev)
+    return $r.Out.Trim()
+}
+function Get-Python {
+    foreach ($c in @('python', 'py')) {
+        $cmd = Get-Command $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($cmd) {
+            & $cmd.Source -c 'import sys' 2>$null
+            if ($LASTEXITCODE -eq 0) { return $cmd.Source }
+        }
+    }
+    return $null
+}

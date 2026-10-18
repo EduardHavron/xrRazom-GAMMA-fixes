@@ -2,6 +2,8 @@
 # GitHub Actions затем собирает релиз, а агент у друга ставит его автоматически.
 # Публикуются только моды, изменённые ЛОКАЛЬНО (3-way сравнение: MO2 / последняя синхронизация / GitHub),
 # поэтому чужие изменения не откатываются. Изменения с GitHub сначала ставятся в свой MO2.
+# Изменения документации в клоне (specs/, tests/, tools/, .claude/skills/, README.md, CLAUDE.md) уходят
+# отдельным коммитом после проверки tools/spec_check.py; host/, installer/, agent/, .github/ - только вручную.
 # Запуск: publish.bat [параметры]   (или powershell -File publish.ps1 [параметры])
 #   -Message "текст"     описание коммита
 #   -NoPrompt            без вопросов (новые моды НЕ публикуются, если нет -Yes)
@@ -29,6 +31,8 @@ $repoRoot = Split-Path $hostDir -Parent
 $actionsFallback = 'https://github.com/EduardHavron/xrRazom-GAMMA-fixes/actions'
 $IGNORE = @('meta.ini', 'xrrfix_pack.txt')   # top-level files of a mod that are not compared/published
 $ABSENT = '<absent>'
+# committed by publish in a separate commit (PUB-045); code paths (host, installer, agent, .github) stay manual
+$DOC_PATHS = @('specs', 'tests', 'tools', '.claude/skills', 'README.md', 'CLAUDE.md')
 $BlockProcs = @('ModOrganizer', 'Anomaly*')
 if ($env:XRRFIX_BLOCK_PROCS) { $BlockProcs = @($env:XRRFIX_BLOCK_PROCS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
 $script:mutex = $null
@@ -93,6 +97,42 @@ function GitLine([string[]]$GitArgs) {
     $r = GitRead $GitArgs
     if ($r.Code -ne 0) { return '' }
     return $r.Out.Trim()
+}
+
+# PUB-046: tools/spec_check.py before the documentation commit. $false = errors, do not commit the docs.
+# XRRFIX_PYTHON: python to use, or "none" to skip the check.
+function Test-DocsOk {
+    $chk = Join-Path $repoRoot 'tools\spec_check.py'
+    $py = $null
+    if ($env:XRRFIX_PYTHON) {
+        if ($env:XRRFIX_PYTHON -ne 'none') { $py = $env:XRRFIX_PYTHON }
+    } else {
+        foreach ($c in @('python', 'py')) {
+            $cmd = Get-Command $c -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($cmd) { $py = $cmd.Source; break }
+        }
+    }
+    if (-not (Test-Path -LiteralPath $chk) -or -not $py) {
+        Write-Host "  spec_check не выполнен (нет tools/spec_check.py или python) - проверит CI." -ForegroundColor Yellow
+        return $true
+    }
+    $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    $oldEnc = $env:PYTHONIOENCODING; $env:PYTHONIOENCODING = 'utf-8'
+    try {
+        $out = @(& $py $chk --root $repoRoot 2>&1 | ForEach-Object { [string]$_ })
+        $code = $LASTEXITCODE
+    } catch {
+        $out = @([string]$_); $code = -1
+    } finally { $ErrorActionPreference = $old; $env:PYTHONIOENCODING = $oldEnc }
+    $global:LASTEXITCODE = 0
+    if ($code -eq 0) { Write-Host "  spec_check: ошибок нет" -ForegroundColor Green; return $true }
+    if ($code -eq 1) {
+        $out | Where-Object { $_ -match '^ERROR' } | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+        Write-Host "Документация не опубликована: исправьте ошибки spec_check и запустите снова." -ForegroundColor Red
+        return $false
+    }
+    Write-Host "  spec_check не выполнен (код $code) - проверит CI." -ForegroundColor Yellow
+    return $true
 }
 
 function JsonStr([string]$s) {
@@ -585,7 +625,26 @@ if (-not (Same-Seq $pubList $headList) -or $headSection -cne $section) {
     if ($LASTEXITCODE -ne 0) { Fail "git add завершился с ошибкой." }
     RunGit diff --cached --quiet -- mods pack
     $hasChanges = ($LASTEXITCODE -ne 0)
-    if (-not $hasChanges) {
+
+    # documentation travels in its own commit (PUB-045), checked by tools/spec_check.py first (PUB-046)
+    $docFiles = @(); $docSpecs = @()
+    foreach ($e in (GitRead (@('status', '--porcelain', '-z', '--no-renames', '--untracked-files=all', '--') + $DOC_PATHS)).Out.Split([char]0)) {
+        if ($e.Length -lt 4) { continue }
+        $p = $e.Substring(3)
+        $docFiles += $p
+        foreach ($d in $DOC_PATHS) {
+            if (($p -eq $d -or $p.StartsWith("$d/")) -and $docSpecs -notcontains $d) { $docSpecs += $d }
+        }
+    }
+    if ($docFiles.Count -gt 0) {
+        Write-Host ""
+        Write-Host "Документация:" -ForegroundColor Cyan
+        $docFiles | ForEach-Object { Write-Host "  [d] $_" -ForegroundColor Cyan }
+        if (-not (Test-DocsOk)) { $docFiles = @(); $docSpecs = @() }
+    }
+    $hasDocs = ($docFiles.Count -gt 0)
+
+    if (-not $hasChanges -and -not $hasDocs) {
         # nothing new, but an earlier commit may still be unpushed (failed push)
         $ahead = 0
         if ($doPush) { [int]::TryParse(((GitOut rev-list --count '@{u}..HEAD') | Select-Object -First 1), [ref]$ahead) | Out-Null }
@@ -642,6 +701,28 @@ if (-not (Same-Seq $pubList $headList) -or $headSection -cne $section) {
     if ($LASTEXITCODE -ne 0) { Fail "git commit завершился с ошибкой." }
     $sha = (GitOut rev-parse HEAD) | Select-Object -First 1
     Write-Host "Коммит: $desc" -ForegroundColor Green
+    }
+
+    if ($hasDocs) {
+        $dmsg = ''
+        if (-not $hasChanges) {
+            $dmsg = $Message
+            if (-not $dmsg -and -not $NoPrompt) {
+                Write-Host ""
+                $dmsg = Read-Host "Описание изменений (Enter - автоматически)"
+                $dmsg = ([string]$dmsg).TrimStart([char]0xFEFF).Trim()  # redirected stdin may carry a BOM
+            }
+            if ($dmsg) { $dmsg = $dmsg.Replace('"', "'").Trim() }
+        }
+        if (-not $dmsg) {
+            $dmsg = "Update docs: " + (@($docFiles | Select-Object -First 5) -join ', ')
+            if ($docFiles.Count -gt 5) { $dmsg += " (+$($docFiles.Count - 5))" }
+        }
+        RunGit add -A -- @docSpecs
+        if ($LASTEXITCODE -ne 0) { Fail "git add (документация) завершился с ошибкой." }
+        RunGit commit -q -m $dmsg -- @docSpecs
+        if ($LASTEXITCODE -ne 0) { Fail "git commit (документация) завершился с ошибкой." }
+        Write-Host "Коммит документации: $dmsg" -ForegroundColor Green
     }
 
     if (-not $doPush) {

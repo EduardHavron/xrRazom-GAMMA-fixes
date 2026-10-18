@@ -241,7 +241,7 @@ Test-Case 'PUB-010 leftovers in repo mods/ and pack/ are reset, other files unto
     Write-Text "$repo\mods\modA\gamedata\scripts\modA.script" "junk`r`n"
     Write-Text "$repo\mods\modZ\y.txt" "y"
     Write-Text "$repo\pack\pack.json" "{}`n"; G-Must -C $repo add pack/pack.json
-    Write-Text "$repo\README.md" "locally edited`n"
+    Write-Text "$repo\host\publish.ini" "gamma_root=`r`nprofile=`r`nsection=xrRazom Sync`r`npush=1`r`n; local`r`n"
     $r = Invoke-Publish $sb 'H' @('-NoPrompt')
     Assert-Code 0 $r
     Assert-Out $r 'Сбрасываю незакоммиченные изменения в mods/ и pack/'
@@ -249,7 +249,7 @@ Test-Case 'PUB-010 leftovers in repo mods/ and pack/ are reset, other files unto
     Assert-Equal "v1 modA`r`n" (Read-Text "$repo\mods\modA\gamedata\scripts\modA.script") 'mods/modA = HEAD'
     Assert-PathMissing "$repo\mods\modZ"
     $st = @(G -C $repo status --porcelain)
-    Assert-Equal ' M README.md' (Join-L $st) 'only README.md still modified'
+    Assert-Equal ' M host/publish.ini' (Join-L $st) 'only host/publish.ini still modified'
 }
 
 Test-Case 'PUB-011 git fetch failure -> exit 1' {

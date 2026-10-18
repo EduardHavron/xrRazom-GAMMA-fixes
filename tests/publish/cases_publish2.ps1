@@ -416,7 +416,7 @@ Test-Case 'PUB-033 interactive confirmation (y/N) from stdin' {
     Assert-Equal 'N1' (Get-OriginMod $sb 'modN') ("publish output:`n" + $r.All)
 }
 
-Test-Case 'PUB-034 SYS-013 commit contains only local mods (no meta.ini/marker) and mods/, pack/ paths' {
+Test-Case 'PUB-034 SYS-013 REPO-013 mods commit holds only local mods (no meta.ini/marker); README goes in its own commit' {
     $sb = New-Sandbox
     Set-Mod $sb.F 'modA' 'A-F'; Publish-Ok $sb 'F' | Out-Null
     Set-Mod $sb.H 'modX' 'X-H'
@@ -425,12 +425,13 @@ Test-Case 'PUB-034 SYS-013 commit contains only local mods (no meta.ini/marker) 
     Write-Text "$($sb.H)\repo\untracked.txt" 'u'
     $r = Invoke-Publish $sb 'H' @('-NoPrompt')
     Assert-Code 0 $r
-    $names = @((Invoke-Proc 'git.exe' @('--git-dir', $sb.Origin, '-c', 'core.quotepath=false', 'show', '--name-only', '--format=', 'main')).Out -split "`n" | Where-Object { $_ })
-    Assert-Equal 'mods/modX/gamedata/scripts/modX.script' (Join-L $names) 'only mods/modX changed in the commit'
+    Assert-Equal 'mods/modX/gamedata/scripts/modX.script' (Join-L (Get-CommitPaths $sb 'main~1')) 'only mods/modX changed in the mods commit'
+    Assert-Equal 'README.md' (Join-L (Get-CommitPaths $sb 'main')) 'docs commit holds only README.md'
     Assert-Equal 'A-F' (Get-OriginMod $sb 'modA')
     $all = Get-OriginPaths $sb
     Assert-Equal 0 @($all | Where-Object { $_ -match '(^|/)(meta\.ini|xrrfix_pack\.txt|modlist\.txt)$' -or $_ -eq 'untracked.txt' }).Count 'no MO2 files, no untracked file'
-    Assert-Equal "test repo`n" (Get-OriginText $sb 'README.md') 'dirty README not committed'
+    Assert-Equal "dirty readme`n" (Get-OriginText $sb 'README.md') 'README published by the docs commit'
+    Assert-Equal 'test repo' ((Get-OriginText $sb 'README.md' 'main~1').TrimEnd("`n")) 'mods commit left README alone'
 }
 
 Test-Case 'PUB-036 summary [+]/[-]/[*], auto message, -Message quotes replaced' {
@@ -542,4 +543,107 @@ Test-Case 'PUB-044 -SyncOnly -NoWait -NoPrompt with blocker and mutex held: exit
     finally { Stop-FakeMO2 $holder; Stop-FakeMO2 $p }
     Assert-Code 2 $r
     Assert-True ($r.Sec -lt 60) "finished in $($r.Sec)s"
+}
+
+$script:NoPy = @{ XRRFIX_PYTHON = 'none' }
+
+Test-Case 'PUB-045 docs (changed, new, under every doc path) go in a separate commit after the mods commit' {
+    $sb = New-Sandbox
+    $repo = "$($sb.H)\repo"
+    Set-Mod $sb.H 'modA' 'A-H'
+    Write-Text "$repo\specs\fixes\fx-a.md" "# FX-A`n"
+    Write-Text "$repo\tests\lua\test_a.lua" "-- t`n"
+    Write-Text "$repo\tools\x.py" "print(1)`n"
+    Write-Text "$repo\.claude\skills\s\SKILL.md" "skill`n"
+    Write-Text "$repo\CLAUDE.md" "rules`n"
+    Write-Text "$repo\README.md" "new readme`n"
+    Write-Text "$repo\.claude\settings.local.json" "{}"
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt', '-Message', 'Mods msg') $script:NoPy
+    Assert-Code 0 $r
+    Assert-Out $r 'Документация:'
+    Assert-Out $r '  [d] specs/fixes/fx-a.md'
+    Assert-Equal 'mods/modA/gamedata/scripts/modA.script' (Join-L (Get-CommitPaths $sb 'main~1')) 'mods commit first, mods only'
+    Assert-Equal 'Mods msg' (Get-CommitSubject $sb 'main~1') '-Message used for the mods commit'
+    Assert-Equal '.claude/skills/s/SKILL.md|CLAUDE.md|README.md|specs/fixes/fx-a.md|tests/lua/test_a.lua|tools/x.py' (Join-L (Get-CommitPaths $sb 'main')) 'docs commit'
+    Assert-True ((Get-CommitSubject $sb 'main') -like 'Update docs: *(+1)') "auto docs message: $(Get-CommitSubject $sb 'main')"
+    Assert-Equal '?? .claude/settings.local.json' (Join-L @(G -C $repo status --porcelain --untracked-files=all)) 'other .claude files untouched'
+}
+
+Test-Case 'PUB-045 docs only: one commit with the description, pushed; code paths stay uncommitted' {
+    $sb = New-Sandbox
+    $repo = "$($sb.H)\repo"
+    Write-Text "$repo\README.md" "readme 2`n"
+    Write-Text "$repo\host\publish.ini" "gamma_root=`r`nprofile=`r`nsection=xrRazom Sync`r`npush=1`r`n; local`r`n"
+    $before = Get-OriginSha $sb
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt', '-Message', 'Docs only') $script:NoPy
+    Assert-Code 0 $r
+    Assert-NoOut $r 'Изменений нет'
+    Assert-Equal $before (G --git-dir $sb.Origin rev-parse main~1 | Select-Object -First 1) 'exactly one new commit'
+    Assert-Equal 'README.md' (Join-L (Get-CommitPaths $sb 'main'))
+    Assert-Equal 'Docs only' (Get-CommitSubject $sb 'main')
+    Assert-Equal ' M host/publish.ini' (Join-L @(G -C $repo status --porcelain)) 'host/publish.ini not committed'
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') $script:NoPy
+    Assert-Out $r 'Изменений нет' 'second run: nothing left to publish'
+}
+
+Test-Case 'PUB-045 deleted doc file is committed as a deletion; -SyncOnly never commits docs' {
+    $sb = New-Sandbox
+    $repo = "$($sb.H)\repo"
+    Write-Text "$repo\specs\a.md" "a`n"
+    Publish-Ok $sb 'H' @('-NoPrompt') | Out-Null
+    Assert-Equal 'a' ((Get-OriginText $sb 'specs/a.md').TrimEnd("`n"))
+    Remove-Item -LiteralPath "$repo\specs\a.md"
+    Write-Text "$repo\README.md" "sync only`n"
+    $before = Get-OriginSha $sb
+    $r = Invoke-Publish $sb 'H' @('-SyncOnly', '-NoPrompt') $script:NoPy
+    Assert-Code 0 $r
+    Assert-Equal $before (Get-OriginSha $sb) '-SyncOnly pushed nothing'
+    Assert-Equal $before (Get-HeadSha $repo) '-SyncOnly committed nothing'
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') $script:NoPy
+    Assert-Code 0 $r
+    Assert-Equal 'README.md|specs/a.md' (Join-L (Get-CommitPaths $sb 'main'))
+    Assert-Equal $null (Get-OriginText $sb 'specs/a.md') 'specs/a.md deleted on GitHub'
+}
+
+Test-Case 'PUB-046 spec_check errors keep docs out, mods still published; clean check commits docs' {
+    $py = Get-Python
+    if (-not $py) { Write-Host '  (no python: skipped)' -ForegroundColor DarkGray; return }
+    $sb = New-Sandbox
+    $repo = "$($sb.H)\repo"
+    Write-Text "$repo\tools\spec_check.py" "import sys`nprint('ERROR   CHK-001  FX-A-001 [auto] has no test case')`nprint('spec_check: 1 error(s)')`nsys.exit(1)`n"
+    Write-Text "$repo\specs\x.md" "x`n"
+    Set-Mod $sb.H 'modA' 'A-H'
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') @{ XRRFIX_PYTHON = $py }
+    Assert-Code 0 $r
+    Assert-Out $r 'ERROR   CHK-001  FX-A-001'
+    Assert-Out $r 'Документация не опубликована'
+    Assert-Equal 'mods/modA/gamedata/scripts/modA.script' (Join-L (Get-CommitPaths $sb 'main')) 'only the mods commit'
+    Assert-Equal $null (Get-OriginText $sb 'specs/x.md') 'docs not published'
+    Assert-Equal '?? specs/|?? tools/' (Join-L @(G -C $repo status --porcelain)) 'docs left in the working tree'
+
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') @{ XRRFIX_PYTHON = $py }
+    Assert-Out $r 'Изменений нет' 'docs rejected again, no mods: nothing to publish'
+
+    Write-Text "$repo\tools\spec_check.py" "import sys`nsys.exit(0)`n"
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') @{ XRRFIX_PYTHON = $py }
+    Assert-Code 0 $r
+    Assert-Out $r 'spec_check: ошибок нет'
+    Assert-Equal 'specs/x.md|tools/spec_check.py' (Join-L (Get-CommitPaths $sb 'main')) 'docs committed after a clean check'
+}
+
+Test-Case 'PUB-046 no python or check code 2: docs committed with a warning' {
+    $sb = New-Sandbox
+    $repo = "$($sb.H)\repo"
+    Write-Text "$repo\specs\y.md" "y`n"
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') $script:NoPy
+    Assert-Code 0 $r
+    Assert-Out $r 'spec_check не выполнен'
+    Assert-Equal 'specs/y.md' (Join-L (Get-CommitPaths $sb 'main'))
+    $py = Get-Python
+    if (-not $py) { return }
+    Write-Text "$repo\tools\spec_check.py" "import sys`nsys.exit(2)`n"
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt') @{ XRRFIX_PYTHON = $py }
+    Assert-Code 0 $r
+    Assert-Out $r 'spec_check не выполнен (код 2)'
+    Assert-Equal 'tools/spec_check.py' (Join-L (Get-CommitPaths $sb 'main'))
 }

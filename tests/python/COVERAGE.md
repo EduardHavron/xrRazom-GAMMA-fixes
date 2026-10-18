@@ -78,7 +78,7 @@ Expected failures: none. (CI-016 in-mod file order was a spec error; the spec wa
 | REPO-010 | auto | via PUB-014, PUB-027, INS-011 (marker ignored by compare; written on removal and by the installer) |
 | REPO-011 | auto | via PUB-014 (top-level meta.ini not published or compared). GAP: catch-up keeping the local meta.ini has no test |
 | REPO-012 | auto | `test_ci_015_repo_012_version_expression`, `test_ci_020_repo_012_create_release` (static workflow checks) |
-| REPO-013 | auto | via PUB-034 (commit holds only mods/ and pack/; dirty README stays uncommitted). Staged-index variant not tested separately |
+| REPO-013 | auto | via PUB-034, PUB-045 (mods commit holds only mods/ and pack/, docs commit only doc paths, host/publish.ini stays uncommitted). Staged-index variant not tested separately |
 | REPO-014 | auto | `test_repo_002_repo_014_no_top_level_meta_or_marker`, `test_repo_014_no_build_artifacts_profiles_agent_state`, `test_repo_014_no_secrets`. These check `git ls-files` outside `tests/`, so test fixtures are allowed. |
 | REPO-015 | auto | `test_repo_015_ps1_and_publish_ini_have_bom`, `test_repo_015_cyrillic_txt_has_bom`, `test_repo_015_bat_ascii`; skipped placeholder `test_known_repo_2_bat_crlf` |
 | REPO-016 | auto | `test_repo_016_ci_001_push_paths_filter`, `test_ci_001_repo_016_paths_listed` |

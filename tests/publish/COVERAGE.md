@@ -20,7 +20,7 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 | PUB-007 | `PUB-007 PUB-034 L = "+" lines ...` |
 | PUB-008 | `PUB-008 empty L ...` |
 | PUB-009 | `PUB-009 unfinished merge / rebase` (MERGE_HEAD, rebase-merge; the other three markers use the same loop) |
-| PUB-010 | `PUB-010 leftovers in repo mods/ and pack/ ...` |
+| PUB-010 | `PUB-010 leftovers in repo mods/ and pack/ ...` (a non-doc file, `host/publish.ini`, stays modified) |
 | PUB-011 | `PUB-011 git fetch failure ...`, `PUB-011 no upstream -> R = origin/main; no origin/main -> R = HEAD` |
 | PUB-012 | `PUB-012 PUB-031 unpushed local commit + remote change ...`, `PUB-012 no common history ...` |
 | PUB-013 | `PUB-013 dirty tracked file outside mods/pack ...` |
@@ -55,6 +55,8 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 | PUB-042 | `PUB-022 PUB-042 ...` (code 3), `PUB-028 PUB-030 PUB-042 ...` (codes 1, 2, 5), `PUB-024 PUB-044 SYS-009 ...` (code 2) |
 | PUB-043 | `PUB-043 publish.bat passes args ...` (via `cmd /c`, stdin closed so `pause` returns) |
 | PUB-044 | `PUB-004 PUB-044 ...`, `PUB-024 PUB-044 SYS-009 ...`, `PUB-044 ... blocker and mutex held ...` |
+| PUB-045 | `PUB-045 docs (changed, new, under every doc path) go in a separate commit ...`, `PUB-045 docs only: one commit ...`, `PUB-045 deleted doc file ... -SyncOnly never commits docs`; `PUB-034 SYS-013 REPO-013 ...` (README in its own commit) |
+| PUB-046 | `PUB-046 spec_check errors keep docs out ...`, `PUB-046 no python or check code 2 ...` (python cases skip without python) |
 
 ## installer.md (INS)
 
