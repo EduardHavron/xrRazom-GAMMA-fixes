@@ -1,4 +1,4 @@
--- Loot Claim v1.2.0 (G.A.M.M.A. 0.9.5), configurable through MCM ("grok_loot_claim")
+-- Loot Claim v1.2.1 (G.A.M.M.A. 0.9.5), configurable through MCM ("grok_loot_claim")
 --  * Kills by the player / companions / co-op peer : only the player may loot, NPCs are locked out
 --  * Kills by other NPCs                           : player may NOT loot, NPCs may (vanilla NPC looting)
 -- Keep npc_loot_claim.script and zz_npc_loot_claim_softcore.script from the base mod as the empty stubs.
@@ -47,6 +47,7 @@ local pending      = {} -- victim_id -> time_global() when a player kill becomes
 local stats = { deaths = 0, player_kills = 0, claimed = 0, free = 0, blocked = 0, allowed = 0, npc_looted_claimed = 0, npc_looted_player_kill = 0 }
 local npc_logged = {}    -- corpse ids already logged for NPC looting (debug)
 local locked_logged = {} -- corpse ids already logged as locked (debug)
+local last_blocked = {}  -- corpse id -> time_global() of the last blocked Use (debug / bypass detection)
 
 local function count(t)
 	local n = 0
@@ -263,7 +264,11 @@ function on_before_key_press(key, bind, dis, flags)
 	if not result then return end
 
 	local obj = result.object
-	if not obj or obj:alive() then return end
+	if not obj then return end
+	if obj:alive() then
+		dlog("USE ray hit a LIVING object %s (not a corpse, nothing to check)", tostring(obj:name()))
+		return
+	end
 	if not (IsStalker(obj) or IsMonster(obj)) then return end
 
 	local id = obj:id()
@@ -278,7 +283,81 @@ function on_before_key_press(key, bind, dis, flags)
 	stats.blocked = stats.blocked + 1
 	dlog("USE on %s -> BLOCKED (killer id=%s online=%s alive=%s)", obj:name(), tostring(claimed[id]), tostring(sender ~= nil), tostring(sender and sender:alive()))
 	flags.ret_value = false
+	last_blocked[id] = time_global()
 	show_block_message(sender)
+end
+
+-- LAST LINE OF DEFENCE. Whatever opened the loot window (another script ignoring flags.ret_value,
+-- a different input path, ray/engine target mismatch), a claimed body must not stay open.
+local function close_gui(gui)
+	local ok = pcall(function() gui:Close() end)
+	if not ok then
+		ok = pcall(function() level.start_stop_menu(gui, true) end)
+	end
+	return ok
+end
+
+local function loot_window_guard()
+	if not cfg("enabled") then return true end
+	local gui = ui_inventory and ui_inventory.GUI
+	if not gui or gui.mode ~= "loot" then return true end
+	local ok, npc = pcall(function() return gui:GetPartner() end)
+	if not ok or not npc then return true end
+	if db.actor and npc:id() == db.actor:id() then return true end
+	if npc:alive() or not (IsStalker(npc) or IsMonster(npc)) then return true end
+
+	local id = npc:id()
+	local blocked, reason, sender = check_claim(id)
+	if not blocked then return true end
+
+	local t = last_blocked[id]
+	local closed = close_gui(gui)
+	stats.blocked = stats.blocked + 1
+	dlog("BYPASS: loot window opened on CLAIMED body %s (killer id=%s alive=%s); Use was blocked %s ms ago; window closed=%s",
+		tostring(npc:name()), tostring(claimed[id]), tostring(sender and sender:alive()),
+		t and tostring(time_global() - t) or "never (Use hook did not see this opening)", tostring(closed))
+	show_block_message(sender)
+	return true
+end
+
+function GUI_on_show(name)
+	if name ~= "UIInventory" then return end
+	-- partner is set only after the window finished opening: check on the next tick
+	CreateTimeEvent("grok_loot_guard", "grok_loot_guard", 0, loot_window_guard)
+end
+
+-- PRIMARY GATE. Every loot window (Use key, engine callback ActorMenu_on_before_init_mode, companion menu,
+-- other mods) is opened by ui_inventory.start("loot", body). Wrapping it covers all of those paths at once,
+-- not only the Use key. The callers set their own "handled" flag afterwards, so refusing here just means
+-- the window never opens (the same thing start() already does when keybind_pass() fails).
+local function hook_ui_inventory()
+	local okm, ui = pcall(function() return ui_inventory end)
+	if not okm or not ui or not ui.start then
+		dlog("UI HOOK: ui_inventory.start not found, relying on the Use hook and the GUI_on_show guard")
+		return
+	end
+	local base_start = ui.start
+	ui.start = function(mode, obj, ...)
+		if mode == "loot" and obj and cfg("enabled") then
+			local okc, id = pcall(function() return obj:id() end)
+			if okc and id and not (db.actor and id == db.actor:id())
+			and not obj:alive() and (IsStalker(obj) or IsMonster(obj)) then
+				local blocked, reason, sender = check_claim(id)
+				if blocked then
+					local t = last_blocked[id]
+					local recent = t and (time_global() - t) < 500
+					stats.blocked = stats.blocked + 1
+					dlog("LOOT WINDOW REFUSED at ui_inventory.start: %s (killer id=%s); Use hook blocked it %s ms ago",
+						tostring(obj:name()), tostring(claimed[id]), t and tostring(time_global() - t) or "never")
+					if not recent then show_block_message(sender) end
+					return
+				end
+				on_player_opens(id)
+			end
+		end
+		return base_start(mode, obj, ...)
+	end
+	dlog("UI HOOK: ui_inventory.start wrapped")
 end
 
 local next_tick = 0
@@ -407,7 +486,7 @@ local function module_state(name)
 end
 
 function on_game_start()
-	dlog("LOADED v1.2.0 | enabled=%s player_loot_all=%s npc_loot_all=%s claim_mutants=%s release_killer_dead=%s release_killer_far=%s far_distance=%s release_after_loot=%s release_delay=%s",
+	dlog("LOADED v1.2.1 | enabled=%s player_loot_all=%s npc_loot_all=%s claim_mutants=%s release_killer_dead=%s release_killer_far=%s far_distance=%s release_after_loot=%s release_delay=%s",
 		tostring(cfg("enabled")), tostring(cfg("player_loot_all")), tostring(cfg("npc_loot_all")), tostring(cfg("claim_mutants")), tostring(cfg("release_killer_dead")), tostring(cfg("release_killer_far")), tostring(cfg("far_distance")), tostring(cfg("release_after_loot")), tostring(cfg("release_delay")))
 	dlog("modules: xr_corpse_detection=%s z_auto_looter=%s npc_loot_claim=%s XrrPlayers=%s", module_state("xr_corpse_detection"), module_state("z_auto_looter"), module_state("npc_loot_claim"), module_state("XrrPlayers"))
 
@@ -419,6 +498,8 @@ function on_game_start()
 	RegisterScriptCallback("save_state", save_state)
 	RegisterScriptCallback("load_state", load_state)
 	RegisterScriptCallback("on_level_changing", on_level_changing)
+	RegisterScriptCallback("GUI_on_show", GUI_on_show)
 	pcall(hook_autolooter)
+	pcall(hook_ui_inventory)
 	dlog("callbacks registered")
 end

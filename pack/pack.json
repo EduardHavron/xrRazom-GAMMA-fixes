@@ -1,7 +1,6 @@
 {
   "section": "xrRazom Sync",
   "mods": [
-    "zz xrRazom Fix - Ledge Grabbing",
     "zz xrRazom Fix - Taskboard Refresh",
     "zz xrRazom Fix - Laser State",
     "zz xrRazom Fix - Remember Belt",
@@ -12,6 +11,7 @@
     "zz xrRazom Fix - Fetch Reward",
     "zz Workshop Ammo Material Fix",
     "zz xrRazom Fix - Kill Tracker Mirror Corpses",
-    "Combined GAMMA NPC Loot Claim v.1.2"
+    "zz xrRazom Fix - Ledge Grabbing",
+    "Combined GAMMA NPC Loot Claim v.1.2.1"
   ]
 }
