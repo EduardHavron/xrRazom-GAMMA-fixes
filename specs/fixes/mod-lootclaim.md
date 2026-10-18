@@ -1,4 +1,6 @@
-# Loot Claim — Software Design Description
+# MOD-LOOTCLAIM: Loot Claim — Software Design Description
+Статус: действует        Проверка в игре: не проводилась        Мод: `Combined GAMMA NPC Loot Claim v.1.2.1` (имя папки — как в `pack.json`, тесты берут его оттуда)        Скрипты: `gamedata/scripts/grok_loot_claim.script`, `gamedata/scripts/grok_loot_claim_mcm.script`, заглушки `npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`
+Где ставить: оба (через секцию «xrRazom Sync»)        Зависит от: `G.A.M.M.A. NPC Loot Claim Remade` (ниже по приоритету), MCM, xrRazom, `z_auto_looter` (все необязательны)        Лог-маркер: `[grok_loot_claim] LOADED ...` (только при `debug`)
 
 | | |
 |---|---|
@@ -173,3 +175,89 @@
 - 1.1.3–1.1.5 — исправлен сброс клеймов при загрузке; обёртка Autolooter; выброс старых записей и очистка при смене уровня.
 - 1.2.0 — MCM, интеграция диагностики, опции дальности и задержки.
 - 1.2.1 — шлюз `ui_inventory.start` и страховка `GUI_on_show` (закрытие обхода блока Use), релиз своих киллов при любом пути открытия, диагностика обхода; опции MCM и XML не менялись.
+
+## 11. Требования (ID для тестов)
+
+### MOD-LOOTCLAIM-001 Настройки  [auto]
+Каждая настройка ДОЛЖНА читаться как `ui_mcm.get("grok_loot_claim/<key>")`, а при отсутствии MCM или значении `nil` — из `DEFAULTS`
+скрипта. Страница MCM (`grok_loot_claim_mcm.script`, id `grok_loot_claim`) ДОЛЖНА содержать все 13 ключей `DEFAULTS` с теми же
+значениями по умолчанию: `enabled=true, player_loot_all=false, npc_loot_all=false, claim_mutants=true, release_killer_dead=true,
+release_killer_far=true, far_distance=35 (10..150), release_after_loot=true, release_delay=10 (0..60), show_messages=true,
+companions_are_player=true, block_autolooter=true, debug=false`.
+- Дано MCM нет. Тогда используются `DEFAULTS`. Дано MCM вернул `false` для `enabled`. Тогда мод выключен.
+
+### MOD-LOOTCLAIM-002 Убийство стороной игрока  [auto]
+Убийца — сторона игрока, если это `db.actor`, или персонаж пира (`XrrPlayers():IsPlayerDummy(id)`; без xrRazom или при ошибке —
+не пир), или компаньон (`has_info("npcx_is_companion")`) при `companions_are_player`. Если жертва — сталкер, она ДОЛЖНА попасть
+в `player_kills` и сразу заблокироваться для NPC (MOD-LOOTCLAIM-006), кроме случая `npc_loot_all` (тогда ничего не делается).
+Жертва-мутант от стороны игрока НЕ ДОЛЖНА ни блокироваться, ни попадать в `claimed`.
+- Дано пир (dummy) убил сталкера. Тогда тело в `player_kills`, у тела `corpse_already_selected=0`, `HasValuableLoot` снят.
+
+### MOD-LOOTCLAIM-003 Свободные тела  [auto]
+Смерть НЕ ДОЛЖНА ничего регистрировать (тело свободно для всех), если, в этом порядке: нет убийцы или это самоубийство;
+у жертвы есть story id; убийца — `zombied`; убийца — компаньон (при выключенном `companions_are_player`); убийца не сталкер
+(мутант, аномалия-объект); жертва — мутант и `claim_mutants=false`.
+- Дано зомбированный убил сталкера. Тогда `claimed` пуст.
+
+### MOD-LOOTCLAIM-004 Убийство другим NPC  [auto]
+Если ни 002, ни 003 не сработали (убийца — живой сталкер не со стороны игрока), жертва ДОЛЖНА попасть в `claimed[victim]=killer`.
+- Дано сталкер 7 убил сталкера 5. Тогда `claimed[5]=7`.
+
+### MOD-LOOTCLAIM-005 Блок обыска для игрока  [auto]
+При нажатии Use (`key_bindings.kUSE`) на мёртвого сталкера или мутанта в пределах 10 м луча из камеры мод ДОЛЖЕН проверить
+претензию и при блокировке выставить `flags.ret_value = false`. Претензии нет (обыск разрешён), если: мод выключен или
+`player_loot_all`; тела нет в `claimed`; `release_killer_dead` и убийца загружен и мёртв (претензия при этом удаляется);
+`release_killer_far` и убийца не загружен; `release_killer_far` и живой убийца дальше `far_distance` от игрока.
+Другие клавиши, живые цели, не сталкеры/мутанты и промах луча игнорируются.
+- Дано `claimed[5]=7`, убийца жив в 10 м. Когда Use. Тогда `ret_value=false`.
+- Дано убийца жив в 40 м (`far_distance=35`). Тогда обыск разрешён.
+
+### MOD-LOOTCLAIM-006 Блокировка NPC на своих убийствах  [auto]
+Блокировка тела ДОЛЖНА: вызвать `xr_corpse_detection.set_valuable_loot(id, nil)` и выставить
+`db.storage[id].corpse_already_selected = 0` (если запись есть). Пока мод включён и `npc_loot_all` выключен, `actor_on_update`
+ДОЛЖЕН повторять блокировку всех тел из `player_kills` не чаще раза в 1000 мс.
+- Дано NPC сбросил `corpse_already_selected=nil`. Когда прошло ≥1000 мс. Тогда значение снова 0.
+
+### MOD-LOOTCLAIM-007 Снятие блокировки после своего обыска  [auto]
+Когда игрок открывает своё убийство (Use или автолутер разрешили) и `release_after_loot` включён, мод ДОЛЖЕН запланировать
+снятие через `release_delay` секунд (один раз). По наступлении времени `actor_on_update` ДОЛЖЕН снять блокировку: убрать тело
+из `player_kills` и `pending`, `corpse_already_selected = nil`, `set_valuable_loot(id, true)`.
+- Дано своё убийство 5, `release_delay=10`. Когда Use в момент t. Тогда до t+10 с тело заблокировано, после — свободно для NPC.
+
+### MOD-LOOTCLAIM-008 Выключение отдаёт тела NPC  [auto]
+Если `enabled=false` или `npc_loot_all=true`, следующий тик `actor_on_update` ДОЛЖЕН снять блокировку со всех тел `player_kills`
+(как в 007), а новые смерти при `enabled=false` НЕ ДОЛЖНЫ регистрироваться.
+
+### MOD-LOOTCLAIM-009 Обыск NPC снимает претензию  [auto]
+`npc_on_get_all_from_corpse(npc, corpse, ...)` при `release_after_loot` ДОЛЖЕН удалить тело из `claimed` (теперь его может
+обыскать и игрок). На `player_kills` это не влияет.
+
+### MOD-LOOTCLAIM-010 Автолутер  [auto]
+Если модуль `z_auto_looter` существует и `block_autolooter` включён: обёртка `get_actor` ДОЛЖНА возвращать `nil` для тела под
+претензией (с сообщением `st_npc_loot_claim_far` при `show_messages`), обёртка `auto_looter(key, body)` ДОЛЖНА не вызывать
+оригинал для такого тела. Для разрешённого тела — вызывать оригинал и планировать снятие как в 007. При `block_autolooter=false`
+обёртки ДОЛЖНЫ пропускать всё. Без `z_auto_looter` мод работает без обёрток.
+
+### MOD-LOOTCLAIM-011 Сообщение при блоке  [auto]
+При блоке и `show_messages`: если убийца жив, сталкер и не дальше 25 м — подсказка `dynamic_news_helper.send_tip` с текстом
+`st_npc_loot_claim_last_<1..5>` от имени убийцы; иначе — `actor_menu.set_msg(1, st_npc_loot_claim_far, 5)`.
+
+### MOD-LOOTCLAIM-012 Сохранение  [auto]
+`save_state` ДОЛЖЕН записать `m_data.claimed`, `m_data.player_kills` и `m_data.loot_claim_seq = {c, p, n}`; `load_state` ДОЛЖЕН
+восстановить их (отсутствующее → пустые таблицы, счётчик 0). `pending` НЕ сохраняется.
+
+### MOD-LOOTCLAIM-013 Смена уровня  [auto]
+`on_level_changing` ДОЛЖЕН очистить `claimed`, `player_kills`, `pending` и служебные таблицы.
+
+### MOD-LOOTCLAIM-014 Ограничение таблиц  [auto]
+Когда в `claimed` или `player_kills` становится больше 1000 записей, ДОЛЖНЫ удаляться 100 самых старых (по порядку добавления),
+а не вся таблица.
+
+### MOD-LOOTCLAIM-015 Счётчик заданий Семёнова  [auto]
+Независимо от настроек: если `db.actor` убил мутанта, существует story-объект `yan_ecolog_semenov` и переменная
+`yan_ecolog_semenov_task_1_tissue_need` > 0, мод ДОЛЖЕН увеличить `yan_ecolog_semenov_task_1_tissue_count` на 1.
+
+### MOD-LOOTCLAIM-016 Кооп: убийства пира у хоста  [manual]
+У хоста тело, убитое пиром, ДОЛЖНО быть закрыто для NPC и открыто для обоих игроков (оно не попадает в `claimed`).
+
+Шлюз окна лута 1.2.1 (раздел 5.5) пока не описан требованиями с ID и не покрыт автотестами; требования 001–016 проверены тестами `tests/lua/test_lootclaim.lua` на скрипте 1.2.1.
