@@ -77,10 +77,12 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 | zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | не проводилась | [FX-KILLTR](specs/fixes/fx-killtr.md) |
 | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | не проводилась | [FX-LEDGE](specs/fixes/fx-ledge.md) |
 | zz xrRazom Fix - Taskboard Refresh | когда друг жмёт «Обновить» в заданиях PDA, у хоста нет многосекундной просадки FPS, а у друга задания появляются по мере поиска | хост и пир | не проводилась | [FX-QLIST](specs/fixes/fx-qlist.md) |
+| zz Task Generation Speed Fix | генерация заданий у NPC не сканирует мир заново для каждого NPC и каждого bounty-задания — «Обновить» в Taskboard и диалоги дешевле для хоста (работает и в соло); в лог пишется профиль генерации | хост | не проводилась | [FX-TGEN](specs/fixes/fx-tgen.md) |
 | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы (не xrRazom, работает и в соло) | кто крафтит | не записана | [FX-WSAMMO](specs/fixes/fx-wsammo.md) |
-| Combined GAMMA NPC Loot Claim v.1.2 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | не записана | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
+| Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с настройкой в MCM: своих убитых обыскивает только игрок, чужих — NPC; убийства пира считаются убийствами игрока | хост и пир | не записана | [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md) |
+| Quantity Craft and Transfer | диалог «Сколько?» (ползунок и ввод числа): крафт рецепта N раз одним запросом, перенос и передача игроку xrRazom N предметов стопки; крафт берёт худшие, перенос и передача — лучшие; хоткей с Ctrl/Shift/Alt в MCM | у каждого (передача — только в коопе) | не проводилась | [MOD-QCT](specs/fixes/mod-qct.md) |
 
-`FX-*` — наши фиксы, `MOD-*` — сторонние или переработанные моды. Заметки к отдельным модам:
+`FX-*` — наши фиксы, `MOD-*` — сторонние, переработанные или собственные моды (не фиксы). Заметки к отдельным модам:
 - **Combined GAMMA NPC Loot Claim** — устройство, настройки MCM и план проверки от автора — в спеке [MOD-LOOTCLAIM](specs/fixes/mod-lootclaim.md). Скрипты базового NPC Loot Claim
   (`npc_loot_claim.script`, `zz_npc_loot_claim_softcore.script`) должны оставаться пустыми заглушками.
 

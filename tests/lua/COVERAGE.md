@@ -73,6 +73,17 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-QLIST-013 | FX-QLIST-013 final redraw after xrRazom's on_complete; empty NPC list completes at once | test_qlist_peer.lua |
 | FX-QLIST-014 | FX-QLIST-014 host: wrappers pass through | test_qlist_peer.lua |
 | FX-QLIST-015 | FX-QLIST-015 redraw errors logged once per refresh; destroyed tab is not redrawn | test_qlist_peer.lua |
+| FX-TGEN-001 | FX-TGEN-001 wraps has_completed_task_prerequisites once and logs the marker; without the function: logged and skipped | test_tgen.lua |
+| FX-TGEN-002 | FX-TGEN-002 generation calls answered from the memo for 5000 ms, per task_id | test_tgen.lua |
+| FX-TGEN-003 | FX-TGEN-003 calls with an actor, an npc or no task id always reach the original | test_tgen.lua |
+| FX-TGEN-004 | FX-TGEN-004 on_level_changing clears the memo and the bounty snapshot | test_tgen.lua |
+| FX-TGEN-005 | FX-TGEN-005 swaps build_variants once and logs the marker; without the module, debug or a helper: logged and skipped | test_tgen.lua |
+| FX-TGEN-006 | FX-TGEN-006 one scan per 5000 ms snapshot | test_tgen.lua |
+| FX-TGEN-007 | FX-TGEN-007 picks the same candidates, in the same group order, as the original; stops at MAX_VARIANTS | test_tgen.lua |
+| FX-TGEN-008 | FX-TGEN-008 every pick passes candidate_valid; refused ones are replaced | test_tgen.lua |
+| FX-TGEN-009 | FX-TGEN-009 wraps on actor_on_first_update once; results and errors pass through | test_tgen.lua |
+| FX-TGEN-010 | FX-TGEN-010 summary after 1 s idle: totals, nested time inside callers, top list; under 5 ms (nested time counted once): no summary, counters reset | test_tgen.lua |
+| FX-TGEN-011 | manual (in game: host lag on a cold Taskboard refresh, taskprof summary) | — |
 
 ### MOD-LOOTCLAIM (Combined GAMMA NPC Loot Claim, folder name read from pack.json) — test_lootclaim.lua
 
@@ -97,6 +108,33 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 
 Mutation check (2026-10-14): disabling the Use block, inverting the distance check, removing the table cap, changing LOCK_VALUE
 and disabling the release after NPC loot each made the matching cases fail.
+
+### MOD-QCT (Quantity Craft and Transfer) — test_qct.lua
+
+The workshop stand-in copies the call shape of the live chain: `UpdateItem` sees every live client object (released ones too,
+until the deferred removal), `Craft` mirrors `zz_ui_workshop_keep_crafting_window_open.script` of Craft From Stashes (release,
+discharge, one ammo box of `craft_item_r[2]`, `craft_item_r[2]` results, lead box refund of used - 1).
+
+| Requirement | Test case(s) |
+|---|---|
+| MOD-QCT-001 | MOD-QCT-001 workshop patched once with the marker; no ui_inventory: logged and skipped |
+| MOD-QCT-002 | MOD-QCT-002 hotkey needs the exact modifier set; key <= 0 disables it |
+| MOD-QCT-003 | MOD-QCT-003 dialog max is the exact feasible N; the one-craft view is restored |
+| MOD-QCT-004 | MOD-QCT-004 OK with N: one Craft() call, N results, N sets consumed, nothing released twice |
+| MOD-QCT-005 | MOD-QCT-005 OK above what is left now is clamped by a fresh evaluation |
+| MOD-QCT-006 | MOD-QCT-006 ammo result: N boxes of box size, dialog shows pieces |
+| MOD-QCT-007 | MOD-QCT-007 *_lead_box result: no lead box refund beyond per-craft |
+| MOD-QCT-008 | MOD-QCT-008 next batch refused while released objects linger; warning after the timeout |
+| MOD-QCT-009 | MOD-QCT-009 multi-use material: fewest uses first, exact consumption |
+| MOD-QCT-010 | MOD-QCT-010 move N: best first, re-validated at OK, packs counted in pieces |
+| MOD-QCT-011 | MOD-QCT-011 give N: best still owned first, one SendGiveItem per id, stops when the player leaves |
+| MOD-QCT-012 | MOD-QCT-012 no xrRazom or nobody within 5 m: no give entries |
+| MOD-QCT-013 | MOD-QCT-013 peer: Craft runs inside the xrRazom peer-chain window |
+| MOD-QCT-014 | manual (dialog layout on 4:3 / 16:9 / 21:9) |
+| MOD-QCT-015 | manual (co-op: batch craft and give on a peer, counts match on host and peer) |
+
+Mutation check (2026-10-26): no lead box skip, no busy block, no ammo split, give without the owner check, hotkey ignoring
+modifiers, no peer-chain window, reversed multi-use order — each failed exactly its requirement's case.
 
 ## Expected failures
 

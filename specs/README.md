@@ -117,6 +117,7 @@ specs/
 | FX-KILLTR | zz xrRazom Fix - Kill Tracker Mirror Corpses | метки КПК: трупы-зеркала не «убиты пиром» |
 | FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag и прыжок GAMMA в коопе |
 | FX-QLIST | zz xrRazom Fix - Taskboard Refresh | «Обновить» в Taskboard у пира: без просадки у хоста, задания показываются по мере ответов |
+| FX-TGEN | zz Task Generation Speed Fix | генерация заданий без повторных сканов мира (память предусловий, общий скан bounty) + профилировщик |
 
 ## Другие моды в пакете
 
@@ -127,4 +128,5 @@ specs/
 
 | ID | Мод | Кратко | Спека |
 |---|---|---|---|
-| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |
+| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |
+| MOD-QCT | Quantity Craft and Transfer | «Сколько?»: крафт N раз одним запросом, перенос и передача игроку N предметов стопки | [mod-qct.md](fixes/mod-qct.md) |
