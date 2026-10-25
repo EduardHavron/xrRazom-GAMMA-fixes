@@ -1,0 +1,139 @@
+<w>
+	<!-- Generated: one element set per aspect ratio (suffix "", "_16", "_21"), widths already scaled.
+	     Positions are set from qct_dialog.script. -->
+	<dim x="0" y="0" width="1024" height="768" stretch="1">
+		<texture a="110" r="0" g="0" b="0">ui\ui_console</texture>
+	</dim>
+
+	<!-- k = 1.0 -->
+	<panel x="0" y="0" width="440.0" height="200" stretch="1">
+		<texture a="240" r="22" g="24" b="22">ui\ui_console</texture>
+	</panel>
+	<frame x="0" y="0" width="440.0" height="200" stretch="1">
+		<texture>ui_stroketextbox</texture>
+	</frame>
+	<title x="0" y="0" width="440.0" height="26" stretch="1">
+		<text r="230" g="230" b="230" font="letterica18" align="c" vert_align="c"/>
+	</title>
+	<name x="0" y="0" width="440.0" height="22" stretch="1">
+		<text complex_mode="1" r="170" g="170" b="170" font="letterica16" align="c" vert_align="c"/>
+	</name>
+	<info x="0" y="0" width="326.0" height="20" stretch="1">
+		<text complex_mode="1" r="150" g="150" b="150" font="letterica16" align="l" vert_align="c"/>
+	</info>
+	<icon x="0" y="0" width="64.0" height="64" stretch="1">
+	</icon>
+	<track x="0" y="0" width="190.0" height="16" stretch="1" step="1.0"/>
+	<input x="0" y="0" width="64.0" height="28" stretch="1">
+		<text x="5" r="220" g="220" b="220" font="letterica18" vert_align="c" align="c"/>
+		<texture>ui_inGame2_edit_box_2</texture>
+	</input>
+	<btn_minus x="0" y="0" width="26.0" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">-</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_minus>
+	<btn_plus x="0" y="0" width="26.0" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">+</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_plus>
+	<btn_max x="0" y="0" width="120.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_max</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_max>
+	<btn_ok x="0" y="0" width="120.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_ok</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_ok>
+	<btn_cancel x="0" y="0" width="120.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_cancel</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_cancel>
+
+	<!-- k = 0.75 -->
+	<panel_16 x="0" y="0" width="330.0" height="200" stretch="1">
+		<texture a="240" r="22" g="24" b="22">ui\ui_console</texture>
+	</panel_16>
+	<frame_16 x="0" y="0" width="330.0" height="200" stretch="1">
+		<texture>ui_stroketextbox</texture>
+	</frame_16>
+	<title_16 x="0" y="0" width="330.0" height="26" stretch="1">
+		<text r="230" g="230" b="230" font="letterica18" align="c" vert_align="c"/>
+	</title_16>
+	<name_16 x="0" y="0" width="330.0" height="22" stretch="1">
+		<text complex_mode="1" r="170" g="170" b="170" font="letterica16" align="c" vert_align="c"/>
+	</name_16>
+	<info_16 x="0" y="0" width="244.5" height="20" stretch="1">
+		<text complex_mode="1" r="150" g="150" b="150" font="letterica16" align="l" vert_align="c"/>
+	</info_16>
+	<icon_16 x="0" y="0" width="48.0" height="64" stretch="1">
+	</icon_16>
+	<track_16 x="0" y="0" width="142.5" height="16" stretch="1" step="1.0"/>
+	<input_16 x="0" y="0" width="48.0" height="28" stretch="1">
+		<text x="5" r="220" g="220" b="220" font="letterica18" vert_align="c" align="c"/>
+		<texture>ui_inGame2_edit_box_2</texture>
+	</input_16>
+	<btn_minus_16 x="0" y="0" width="19.5" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">-</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_minus_16>
+	<btn_plus_16 x="0" y="0" width="19.5" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">+</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_plus_16>
+	<btn_max_16 x="0" y="0" width="90.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_max</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_max_16>
+	<btn_ok_16 x="0" y="0" width="90.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_ok</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_ok_16>
+	<btn_cancel_16 x="0" y="0" width="90.0" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_cancel</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_cancel_16>
+
+	<!-- k = 0.5625 -->
+	<panel_21 x="0" y="0" width="247.5" height="200" stretch="1">
+		<texture a="240" r="22" g="24" b="22">ui\ui_console</texture>
+	</panel_21>
+	<frame_21 x="0" y="0" width="247.5" height="200" stretch="1">
+		<texture>ui_stroketextbox</texture>
+	</frame_21>
+	<title_21 x="0" y="0" width="247.5" height="26" stretch="1">
+		<text r="230" g="230" b="230" font="letterica18" align="c" vert_align="c"/>
+	</title_21>
+	<name_21 x="0" y="0" width="247.5" height="22" stretch="1">
+		<text complex_mode="1" r="170" g="170" b="170" font="letterica16" align="c" vert_align="c"/>
+	</name_21>
+	<info_21 x="0" y="0" width="183.38" height="20" stretch="1">
+		<text complex_mode="1" r="150" g="150" b="150" font="letterica16" align="l" vert_align="c"/>
+	</info_21>
+	<icon_21 x="0" y="0" width="36.0" height="64" stretch="1">
+	</icon_21>
+	<track_21 x="0" y="0" width="106.88" height="16" stretch="1" step="1.0"/>
+	<input_21 x="0" y="0" width="36.0" height="28" stretch="1">
+		<text x="5" r="220" g="220" b="220" font="letterica18" vert_align="c" align="c"/>
+		<texture>ui_inGame2_edit_box_2</texture>
+	</input_21>
+	<btn_minus_21 x="0" y="0" width="14.62" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">-</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_minus_21>
+	<btn_plus_21 x="0" y="0" width="14.62" height="26" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">+</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_plus_21>
+	<btn_max_21 x="0" y="0" width="67.5" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_max</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_max_21>
+	<btn_ok_21 x="0" y="0" width="67.5" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_ok</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_ok_21>
+	<btn_cancel_21 x="0" y="0" width="67.5" height="32" stretch="1">
+		<text align="c" vert_align="c" font="letterica18">st_qct_cancel</text>
+		<texture>ui_button_ordinary</texture>
+	</btn_cancel_21>
+</w>

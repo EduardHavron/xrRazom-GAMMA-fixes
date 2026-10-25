@@ -1,0 +1,19 @@
+-- Quantity Craft and Transfer - MCM options (read through qct_main.get_opt)
+
+function on_mcm_load()
+	return {
+		id = "qct", sh = true, gr = {
+			{ id = "desc",      type = "desc",     text = "ui_mcm_qct_desc" },
+			{ id = "key",       type = "key_bind", val = 2, def = DIK_keys.DIK_Y },
+			{ id = "mod_ctrl",  type = "check",    val = 1, def = false },
+			{ id = "mod_shift", type = "check",    val = 1, def = false },
+			{ id = "mod_alt",   type = "check",    val = 1, def = true },
+			{ id = "line1",     type = "line" },
+			{ id = "ctx_craft", type = "check",    val = 1, def = true },
+			{ id = "ctx_move",  type = "check",    val = 1, def = true },
+			{ id = "ctx_give",  type = "check",    val = 1, def = true },
+			{ id = "start_max", type = "check",    val = 1, def = false },
+			{ id = "craft_cap", type = "track",    val = 2, min = 1, max = 500, step = 1, def = 100 },
+		}
+	}
+end

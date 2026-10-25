@@ -1,0 +1,1222 @@
+--[[
+	Quantity Craft and Transfer
+	"How many?" dialog (qct_dialog) for
+	  - workshop crafting: craft the selected recipe N times;
+	  - loot / trade windows: move N items of a stack.
+	Opened from the RMB context menu or the MCM hotkey (key + any combination of Ctrl/Shift/Alt).
+
+	Crafting (one request)
+	  On OK the recipe is evaluated once for N crafts: the stock UIWorkshopCraft:UpdateItem chain
+	  (Serious Workshop optimization, Craft From Stashes, Workshop Ammo Material Fix) runs with every
+	  material amount x N; the largest N the materials really allow is found by bisection. Then ONE
+	  Craft() call (craft_use_low_cond = lowest condition first, xrRazom peer chain) consumes N sets
+	  and creates craft_item_r[2] = N results. Craft would create one oversized box for ammo results
+	  and refund lead boxes per call, so those creations are corrected while the call runs.
+	  alife releases are not instant (on an xrRazom peer they go through the host): the next batch is
+	  refused until everything this one released / discharged is really gone, so no stale object is
+	  ever evaluated as a material again.
+	  Multi-use materials are taken fewest-uses-first and consumed exactly (the stock selection loop
+	  under-discharges when several partial items are combined).
+
+	Moving
+	  Moves the N best items of the stack (condition / uses / rounds, highest first). On OK the stack
+	  is re-validated: every item must still be in the source container and pass Cond_Move.
+	  Ammo-like packs are also counted in pieces in the dialog.
+
+	Giving (xrRazom co-op)
+	  "Give several: <Nickname>" next to xrRazom's own "Send to" entries: N best items of a stack go
+	  to a player within 5 m, one SendGiveItem per id, re-checked before every send.
+--]]
+
+local LOG = "[QCT]"
+
+local defaults = {
+	key       = 21,    -- DIK_Y
+	mod_ctrl  = false,
+	mod_shift = false,
+	mod_alt   = true,
+	ctx_craft = true,
+	ctx_move  = true,
+	ctx_give  = true,
+	craft_cap = 100,
+	start_max = false,
+}
+
+function get_opt(id)
+	if ui_mcm and ui_mcm.get then
+		local v = ui_mcm.get("qct/" .. id)
+		if (v ~= nil) then
+			return v
+		end
+	end
+	return defaults[id]
+end
+
+local function tr(id, ...)
+	local s = game.translate_string(id)
+	if select("#", ...) > 0 then
+		return strformat(s, ...)
+	end
+	return s
+end
+
+local function color(name)
+	return utils_xml.get_color(name)
+end
+
+
+-------------------------------------------------------------------
+-- Hotkey: exact modifier match, so Y, Alt+Y and Ctrl+Shift+Y are different binds
+-------------------------------------------------------------------
+local function down(dik)
+	return (key_state(dik) or 0) ~= 0
+end
+
+function hotkey_match(dik)
+	local key = tonumber(get_opt("key"))
+	if (not key) or (key <= 0) or (dik ~= key) then
+		return false
+	end
+	local ctrl  = down(DIK_keys.DIK_LCONTROL) or down(DIK_keys.DIK_RCONTROL)
+	local shift = down(DIK_keys.DIK_LSHIFT)   or down(DIK_keys.DIK_RSHIFT)
+	local alt   = down(DIK_keys.DIK_LMENU)    or down(DIK_keys.DIK_RMENU)
+	return (ctrl  == (get_opt("mod_ctrl")  == true))
+	   and (shift == (get_opt("mod_shift") == true))
+	   and (alt   == (get_opt("mod_alt")   == true))
+end
+
+
+-------------------------------------------------------------------
+-- Workshop: material sources and counting (same places UpdateItem looks in)
+-------------------------------------------------------------------
+local function ws_stash_id(wnd)
+	return wnd.stashId or (wnd.owner and wnd.owner.stashId)
+end
+
+local function iterate_craft_sources(wnd, fn)
+	db.actor:iterate_inventory(fn, nil)
+
+	local stash_id = ws_stash_id(wnd)
+	local stash = stash_id and level.object_by_id(stash_id)
+	if stash then
+		stash:iterate_inventory_box(fn, nil)
+	end
+
+	-- Craft From Stashes
+	if (type(IterateStashesInRange) == "function") then
+		local range = ui_mcm and ui_mcm.get("craft_from_stashes/range") or 10
+		IterateStashesInRange(fn, range, stash_id)
+	end
+end
+
+-- Items of a section the workshop may use (belt artefacts excluded, each id once)
+local function collect_items(wnd, sec)
+	local belt = {}
+	db.actor:iterate_belt(function(_, o)
+		belt[o:id()] = true
+	end)
+
+	local list, seen = {}, {}
+	iterate_craft_sources(wnd, function(_, o)
+		if o and (o:section() == sec) then
+			local id = o:id()
+			if not (seen[id] or belt[id]) then
+				seen[id] = true
+				list[#list + 1] = o
+			end
+		end
+	end)
+	return list
+end
+
+-- Recipe units available: full ammo boxes worth of rounds, uses of multi-use items, else items
+local function units_of(sec, items)
+	local box = IsItem("ammo", sec)
+	local multi = IsItem("multiuse", sec)
+	local total = 0
+	for _, o in ipairs(items) do
+		if box then
+			total = total + (o:ammo_get_count() or 0)
+		elseif multi then
+			total = total + (o:get_remaining_uses() or 1)
+		else
+			total = total + 1
+		end
+	end
+	if box and (tonumber(box) or 0) > 0 then
+		total = math.floor(total / box)
+	end
+	return total
+end
+
+local function selected_recipe(wnd)
+	local t, i = wnd.last_type, wnd.selected_index
+	local r = t and i and wnd.recipes and wnd.recipes[t] and wnd.recipes[t][i]
+	return r, t, i
+end
+
+-- How many times the recipe can be crafted right now (upper bound; every craft is re-checked)
+function craft_max(wnd, recipe)
+	if (not recipe) then
+		return 0
+	end
+	if not (wnd.toolkits_state and wnd.toolkits_state[recipe.tool]) then
+		return 0
+	end
+	if not (wnd.recipes_items and wnd.recipes_items[recipe.rsp]) then
+		return 0
+	end
+
+	-- The same material may sit in two slots of one recipe
+	local need = {}
+	for i = 1, 4 do
+		local c = recipe[i]
+		if c and c[1] and (tonumber(c[2]) or 0) > 0 then
+			need[c[1]] = (need[c[1]] or 0) + c[2]
+		end
+	end
+
+	local cap = math.max(1, math.floor(tonumber(get_opt("craft_cap")) or defaults.craft_cap))
+	local best = cap
+	for sec, amount in pairs(need) do
+		local n = math.floor(units_of(sec, collect_items(wnd, sec)) / amount)
+		if (n < best) then
+			best = n
+		end
+	end
+	return math.max(0, best)
+end
+
+
+-------------------------------------------------------------------
+-- Workshop: multi-use materials, fewest uses first, exact consumption
+-------------------------------------------------------------------
+local function reorder_multiuse(wnd, n, sec, amount)
+	if not (wnd.craft_allow and wnd.craft_allow[n]) then
+		return
+	end
+	if IsItem("ammo", sec) or (not IsItem("multiuse", sec)) then
+		return
+	end
+	amount = tonumber(amount) or 0
+	if (amount < 1) then
+		return
+	end
+
+	local items = collect_items(wnd, sec)
+	if (#items == 0) then
+		return
+	end
+	-- Degradable materials are re-picked by condition inside Craft (craft_use_low_cond)
+	if utils_item.is_degradable and utils_item.is_degradable(items[1]) then
+		return
+	end
+
+	local list = {}
+	for _, o in ipairs(items) do
+		local uses = o:get_remaining_uses() or 1
+		if (uses > 0) then
+			list[#list + 1] = { id = o:id(), uses = uses }
+		end
+	end
+	table.sort(list, function(a, b)
+		if (a.uses ~= b.uses) then
+			return a.uses < b.uses
+		end
+		return a.id < b.id
+	end)
+
+	local left = amount
+	local picked, remain = {}, {}
+	for _, e in ipairs(list) do
+		if (left <= 0) then
+			break
+		end
+		if (e.uses <= left) then
+			picked[#picked + 1] = e.id
+			left = left - e.uses
+		else
+			remain = { id = e.id, cnt = left }
+			left = 0
+		end
+	end
+	if (left > 0) then
+		return -- not enough after all: keep the stock selection, Craft is disabled anyway
+	end
+
+	wnd.craft_item[n] = picked
+	wnd.craft_item_remain[n] = remain
+end
+
+
+-------------------------------------------------------------------
+-- Workshop: N crafts in one request
+-------------------------------------------------------------------
+local busy = nil       -- the last batch, until everything it consumed is really gone
+local token_seq = 0
+
+local function token_of(wnd)
+	if (not wnd.__qct_token) then
+		token_seq = token_seq + 1
+		wnd.__qct_token = token_seq
+	end
+	return wnd.__qct_token
+end
+
+local function is_coop()
+	return (type(XrrIsHost) == "function")
+end
+
+local function ws_message(wnd, text, clr)
+	if wnd and wnd.info_text then
+		wnd.info_text:SetText(color(clr or "d_orange") .. text)
+	end
+end
+
+local function windows_alive(wnd)
+	return wnd:IsShown() and wnd.owner and wnd.owner:IsShown()
+end
+
+local function find_list_idx(wnd, index)
+	local cc = wnd.CC and wnd.CC["list"]
+	if not (cc and cc.cell) then
+		return
+	end
+	for idx, ci in pairs(cc.cell) do
+		if ci:IsShown() and ci.flags and (ci.flags.info == index) then
+			return idx
+		end
+	end
+end
+
+local function muted(fn, ...)
+	local snd = utils_obj.play_sound
+	utils_obj.play_sound = function() end
+	local ok, err = pcall(fn, ...)
+	utils_obj.play_sound = snd
+	return ok, err
+end
+
+-- Normal one-craft evaluation through the click path (every UpdateItem patch runs)
+local function reselect(wnd, t, i)
+	if not windows_alive(wnd) then
+		return false
+	end
+	if (wnd.last_type ~= t) then
+		return false
+	end
+	local idx = find_list_idx(wnd, i)
+	if (not idx) then
+		return false
+	end
+	local ok, err = muted(wnd.On_CC_Mouse1, wnd, "list", idx)
+	if (not ok) then
+		printe("!ERROR %s re-evaluation failed: %s", LOG, tostring(err))
+		return false
+	end
+	return (wnd.selected_index == i)
+end
+
+-- Evaluate the recipe for n crafts at once: every material amount x n, same UpdateItem chain
+-- (stashes, belt exclusion, ammo partial boxes, multi-use order). Leaves the craft state for n.
+local function evaluate(wnd, recipe, n)
+	wnd.craft_item, wnd.craft_item_remain, wnd.craft_allow = {}, {}, {}
+	wnd.craft_item_r, wnd.craft_allow_r = nil, nil
+	wnd.complexCraft = {}
+
+	local ok, err = muted(function()
+		for i = 1, 4 do
+			if recipe[i] then
+				wnd:UpdateItem(i, recipe[i][1], recipe[i][2] * n, false)
+			end
+		end
+		wnd:UpdateItem(nil, recipe.sec, 1, true, recipe.tool, ui_workshop.workshop_toolkits[recipe.tool])
+	end)
+	if (not ok) then
+		printe("!ERROR %s evaluation x%s failed: %s", LOG, n, tostring(err))
+		return false
+	end
+	return (wnd.craft_allow_r and wnd.craft_item_r and (wnd.craft_item_r[1] == recipe.sec)) and true or false
+end
+
+-- Largest n <= upper the materials really allow (estimate is an upper bound, ammo pairing may lower it)
+local function fit(wnd, recipe, upper)
+	if (upper < 1) then
+		return 0
+	end
+	if evaluate(wnd, recipe, upper) then
+		return upper
+	end
+	local lo, hi = 0, upper - 1
+	while (lo < hi) do
+		local mid = math.floor((lo + hi + 1) / 2)
+		if evaluate(wnd, recipe, mid) then
+			lo = mid
+		else
+			hi = mid - 1
+		end
+	end
+	if (lo > 0) and (not evaluate(wnd, recipe, lo)) then
+		return 0
+	end
+	return lo
+end
+
+-- The single Craft() call, with releases, discharges and result creations recorded.
+-- Craft creates craft_item_r[2] items; for ammo it creates ONE box of craft_item_r[2] rounds,
+-- so ammo results are split back into normal boxes here.
+local function craft_call(wnd, result_sec, box, n)
+	local released, discharged, created = {}, {}, 0
+	-- Craft refunds (lead boxes used - 1) for a "*_lead_box" result; for n results it must be (used - n)
+	local lead_skip = string.find(result_sec, "_lead_box") and (n - 1) or 0
+
+	local o_release = alife_release
+	local o_create = alife_create_item
+	local o_discharge = utils_item.discharge
+
+	_G.alife_release = function(se_obj, ...)
+		pcall(function()
+			if (type(se_obj.id) == "function") then
+				released[se_obj:id()] = se_obj:section()
+			else
+				released[se_obj.id] = se_obj:section_name()
+			end
+		end)
+		return o_release(se_obj, ...)
+	end
+	_G.alife_create_item = function(section, parent, t, ...)
+		if (section == "lead_box") and (lead_skip > 0) then
+			lead_skip = lead_skip - 1
+			return nil
+		end
+		if (section ~= result_sec) then
+			return o_create(section, parent, t, ...)
+		end
+		if box and (type(t) == "table") and (tonumber(t.ammo) or 0) > box then
+			local left, last = t.ammo, nil
+			while (left > 0) do
+				local tt = {}
+				for k, v in pairs(t) do tt[k] = v end
+				tt.ammo = math.min(box, left)
+				last = o_create(section, parent, tt, ...)
+				created = created + 1
+				left = left - tt.ammo
+			end
+			return last
+		end
+		created = created + 1
+		return o_create(section, parent, t, ...)
+	end
+	utils_item.discharge = function(obj, num, ...)
+		pcall(function()
+			local uses = obj:get_remaining_uses()
+			if uses then
+				local id = obj:id()
+				local expect = uses - (tonumber(num) or 1)
+				if (not discharged[id]) or (expect < discharged[id]) then
+					discharged[id] = expect
+				end
+			end
+		end)
+		return o_discharge(obj, num, ...)
+	end
+
+	-- xrRazom: a peer runs the chain inside the peer-chain window, like its own Craft button does
+	local peer = is_coop() and (type(XrrNet) == "function") and (not XrrIsHost())
+	if peer then
+		XrrNet():SetPeerChainWindow(true)
+	end
+	local ok, err = pcall(function()
+		wnd:Craft()
+	end)
+	if peer then
+		XrrNet():SetPeerChainWindow(false)
+	end
+
+	_G.alife_release = o_release
+	_G.alife_create_item = o_create
+	utils_item.discharge = o_discharge
+
+	return ok, err, released, discharged, created
+end
+
+local function pending_resolved(b)
+	for id, sec in pairs(b.pending or {}) do
+		local o = level.object_by_id(id)
+		if o and (o:section() == sec) then
+			return false
+		end
+	end
+	for id, expect in pairs(b.discharged or {}) do
+		local o = level.object_by_id(id)
+		if o and not (b.pending and b.pending[id]) then
+			local uses = o:get_remaining_uses()
+			if uses and (uses > expect) then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+-- A new batch must not evaluate objects the previous one released but the engine still shows
+local function busy_blocks()
+	if (not busy) then
+		return false
+	end
+	if pending_resolved(busy) or (time_continual() > busy.deadline) then
+		return false
+	end
+	return true
+end
+
+local function finish(wnd)
+	local b = busy
+	busy = nil
+	if wnd.btn_craft then
+		wnd.btn_craft:Show(true)
+	end
+	if b.silent then
+		return
+	end
+
+	-- Fresh one-craft counters for the next manual craft
+	if windows_alive(wnd) and (wnd.last_type == b.type) and (wnd.selected_index == b.index) then
+		reselect(wnd, b.type, b.index)
+	end
+
+	local name = ui_item.get_sec_name(b.sec)
+	if (not b.resolved) then
+		ws_message(wnd, tr("st_qct_craft_done", name, b.created) .. " \\n" .. tr("st_qct_warn_sync"), "d_orange")
+	elseif (b.created < b.n) then
+		ws_message(wnd, tr("st_qct_craft_stopped", name, b.created, b.n) .. " \\n" .. tr("st_qct_stop_error"), "d_orange")
+	else
+		ws_message(wnd, tr("st_qct_craft_done", name, b.created), "d_green")
+	end
+end
+
+local function busy_tick(wnd)
+	local b = busy
+	if not (b and b.token == token_of(wnd)) then
+		return
+	end
+	if wnd.btn_craft then
+		wnd.btn_craft:Show(false)
+	end
+
+	local now = time_continual()
+	if (not b.resolved) then
+		if pending_resolved(b) then
+			b.resolved = true
+		elseif (now <= b.deadline) then
+			return
+		end
+	end
+	-- Let Keep Crafting Window Open's delayed refresh (0.1 s) run first, it would overwrite the result text
+	if (now - b.t_craft < 300) then
+		return
+	end
+	finish(wnd)
+end
+
+local function start_craft(wnd, t, i, sec, n)
+	if busy_blocks() then
+		return ws_message(wnd, tr("st_qct_wait"))
+	end
+	if not windows_alive(wnd) then
+		return
+	end
+
+	-- Validate against the state at OK time, not at dialog open time
+	local recipe = wnd.recipes and wnd.recipes[t] and wnd.recipes[t][i]
+	if not (recipe and recipe.sec == sec) or (wnd.last_type ~= t) or (wnd.selected_index ~= i) then
+		return ws_message(wnd, tr("st_qct_stop_recipe"))
+	end
+	n = math.floor(tonumber(n) or 0)
+	if (n < 1) then
+		return
+	end
+	local wanted = n
+	n = fit(wnd, recipe, math.min(n, craft_max(wnd, recipe)))
+	if (n < 1) then
+		reselect(wnd, t, i)
+		return ws_message(wnd, tr("st_qct_stop_materials"))
+	end
+
+	-- The evaluation for n is the current craft state; scale the result the same way
+	local box = IsItem("ammo", sec)
+	box = box and tonumber(box) or nil
+	wnd.craft_item_r[2] = box and (box * n) or ((tonumber(wnd.craft_item_r[2]) or 1) * n)
+
+	local ok, err, released, discharged, created = craft_call(wnd, sec, box, n)
+	if (not ok) then
+		printe("!ERROR %s Craft x%s failed: %s", LOG, n, tostring(err))
+	end
+	-- Craft counts one "items_crafted" per call
+	for _ = 2, math.min(n, created) do
+		pcall(game_statistics.increment_statistic, "items_crafted")
+	end
+
+	busy = {
+		token      = token_of(wnd),
+		type       = t,
+		index      = i,
+		sec        = sec,
+		n          = n,
+		created    = created,
+		pending    = released,
+		discharged = discharged,
+		t_craft    = time_continual(),
+		deadline   = time_continual() + (is_coop() and 15000 or 4000),
+	}
+	if wnd.btn_craft then
+		wnd.btn_craft:Show(false)
+	end
+	printf("%s craft %s: asked %s, crafted %s in one request (%s released)", LOG, sec, wanted, created, size_table(released))
+end
+
+local function abort_silently(wnd)
+	-- Keeps blocking new batches until the releases are seen, only drops the result text
+	if busy and (busy.token == token_of(wnd)) then
+		busy.silent = true
+	end
+end
+
+function open_craft_dialog(wnd)
+	if busy_blocks() then
+		return ws_message(wnd, tr("st_qct_wait"))
+	end
+	if qct_dialog.is_open() then
+		return
+	end
+	local recipe, t, i = selected_recipe(wnd)
+	if (not recipe) then
+		return
+	end
+
+	-- Exact maximum through the real chain, then back to the normal one-craft view
+	local max = fit(wnd, recipe, craft_max(wnd, recipe))
+	reselect(wnd, t, i)
+	if (max < 1) then
+		return ws_message(wnd, tr("st_qct_stop_materials"))
+	end
+
+	local sec = recipe.sec
+	local box = IsItem("ammo", sec)
+	qct_dialog.open({
+		title = "st_qct_how_many",
+		name  = ui_item.get_sec_name(sec),
+		sec   = sec,
+		max   = max,
+		value = get_opt("start_max") and max or 1,
+		info_func = function(n)
+			if box then
+				return tr("st_qct_craft_info_units", max, n * box)
+			end
+			return tr("st_qct_craft_info", max)
+		end,
+		on_ok = function(n)
+			start_craft(wnd, t, i, sec, n)
+		end,
+	})
+end
+
+local function craft_hotkey(wnd)
+	-- Hovered recipe wins over the selected one
+	local cc = wnd.CC and wnd.CC["list"]
+	local hidx = cc and cc.hover and cc.hover.idx
+	local ci = hidx and cc.cell and cc.cell[hidx]
+	if ci and ci:IsShown() and ci.flags and ci.flags.info then
+		wnd:On_CC_Mouse1("list", hidx)
+	end
+	open_craft_dialog(wnd)
+end
+
+
+-------------------------------------------------------------------
+-- Inventory: move N of a stack, best first
+-------------------------------------------------------------------
+local move_bags = {
+	actor_bag = true, npc_bag = true,
+	actor_trade_bag = true, actor_trade = true,
+	npc_trade_bag = true, npc_trade = true,
+}
+
+local function quality(o)
+	if IsAmmo(o) then
+		return o:ammo_get_count() or 0, o:condition() or 0
+	end
+	if IsItem("multiuse", nil, o) then
+		return o:get_remaining_uses() or 0, o:condition() or 0
+	end
+	return o:condition() or 0, 0
+end
+
+local function stack_ids(gui, bag, id)
+	local cc = gui.CC and gui.CC[bag]
+	local ci = cc and cc:GetCell_ID(id)
+	if not (ci and ci.ID) then
+		return
+	end
+	local ids = { ci.ID }
+	if ci.childs then
+		for cid, _ in pairs(ci.childs) do
+			if (type(cid) == "number") and (cid ~= ci.ID) then
+				ids[#ids + 1] = cid
+			end
+		end
+	end
+	return ids
+end
+
+-- Item is still where the player saw it
+local function in_source(gui, bag, o)
+	local cc = gui.CC and gui.CC[bag]
+	if not (cc and cc.indx_id and cc.indx_id[o:id()]) then
+		return false
+	end
+	if (gui.mode == "loot") then
+		local p = o:parent()
+		local owner = (bag == "npc_bag") and gui.npc_id or AC_ID
+		return p and (p:id() == owner) or false
+	end
+	return true
+end
+
+-- Items of the stack still in the source, best first; units = pieces inside (ammo-like packs) or 1
+local function sorted_stack(gui, bag, sec, ids)
+	local cand = {}
+	for _, id in ipairs(ids) do
+		local o = level.object_by_id(id)
+		if o and (o:section() == sec) and in_source(gui, bag, o) then
+			local q1, q2 = quality(o)
+			local units = IsAmmo(o) and (o:ammo_get_count() or 0) or 1
+			cand[#cand + 1] = { id = id, q1 = q1, q2 = q2, units = units }
+		end
+	end
+	table.sort(cand, function(a, b)
+		if (a.q1 ~= b.q1) then return a.q1 > b.q1 end
+		if (a.q2 ~= b.q2) then return a.q2 > b.q2 end
+		return a.id < b.id
+	end)
+	return cand
+end
+
+local function do_move(ctx, n)
+	local gui = ctx.gui
+	if not (gui and gui:IsShown() and (gui.mode == ctx.mode) and (gui.npc_id == ctx.npc_id)) then
+		return
+	end
+
+	-- Re-validate the stack seen when the dialog opened
+	local cand = sorted_stack(gui, ctx.bag, ctx.sec, ctx.ids)
+
+	n = math.min(math.floor(tonumber(n) or 0), #cand)
+	local moved, done = 0, {}
+	for k = 1, n do
+		local id = cand[k].id
+		local o = (not done[id]) and level.object_by_id(id)
+		if o and in_source(gui, ctx.bag, o) and gui:Cond_Move(o, ctx.bag) then
+			done[id] = true
+			gui:Action_Move(id, ctx.bag)
+			moved = moved + 1
+		end
+	end
+
+	if (moved < ctx.wanted) then
+		actor_menu.set_msg(1, tr("st_qct_moved_less", moved, ctx.wanted), 4)
+	end
+	printf("%s move %s x%s/%s from %s", LOG, ctx.sec, moved, ctx.wanted, ctx.bag)
+end
+
+function open_move_dialog(gui, id, bag)
+	if qct_dialog.is_open() then
+		return
+	end
+	if not (move_bags[bag] and (gui.mode == "loot" or gui.mode == "trade")) then
+		return
+	end
+	local obj = level.object_by_id(id)
+	if not (obj and gui:Cond_Move(obj, bag)) then
+		return
+	end
+	local ids = stack_ids(gui, bag, id)
+	if not (ids and #ids > 1) then
+		return
+	end
+
+	local ctx = {
+		gui = gui, bag = bag, sec = obj:section(), ids = ids,
+		mode = gui.mode, npc_id = gui.npc_id,
+	}
+	-- Same order do_move uses, so the preview is what will really move
+	local list = sorted_stack(gui, bag, ctx.sec, ids)
+	local max = #list
+	if (max < 2) then
+		return
+	end
+	local packs = IsAmmo(obj)
+	local total = 0
+	for _, e in ipairs(list) do
+		total = total + e.units
+	end
+
+	qct_dialog.open({
+		title = "st_qct_how_many",
+		name  = ui_item.get_sec_name(ctx.sec),
+		info_func = function(n)
+			if (not packs) then
+				return tr("st_qct_move_info", max)
+			end
+			local units = 0
+			for k = 1, math.min(n, max) do
+				units = units + list[k].units
+			end
+			return tr("st_qct_move_info_units", total, units)
+		end,
+		sec   = ctx.sec,
+		max   = max,
+		value = get_opt("start_max") and max or 1,
+		on_ok = function(n)
+			ctx.wanted = n
+			do_move(ctx, n)
+		end,
+	})
+end
+
+-------------------------------------------------------------------
+-- xrRazom: give N of a stack to a nearby player
+-------------------------------------------------------------------
+-- Same peer list rules as xrRazom's own "Send to <Nickname>" (xrr_patch_inventory): live avatar
+-- within 5 m, at most 8 entries. Items go one XrrPlayers():SendGiveItem per id, paced like
+-- separate clicks; before every send the item must still be in the actor's inventory and the
+-- receiver still close, and no id is ever sent twice.
+local GIVE_SLOTS   = 8
+local GIVE_RADIUS  = 5.0
+local GIVE_STEP_MS = 50
+
+local peers = {}         -- slot -> { netid, nick, d }
+local give_queue = nil
+
+local function coop_on()
+	if not ((type(XrrPlayers) == "function") and (type(XrrIsHost) == "function")) then
+		return false
+	end
+	return ((type(XrrIsConnected) == "function") and XrrIsConnected()) or XrrIsHost()
+end
+
+-- Avatar of the player with this netid if it is live and close enough
+local function peer_near(netid)
+	local P = XrrPlayers()
+	for i = 1, P:GetPeerCount() do
+		if (P:GetPeerNetidAt(i) == netid) then
+			local cid = P:GetPeerLocalIdAt(i)
+			local proxy = cid and (cid > 0) and level.object_by_id(cid)
+			if proxy then
+				local d = db.actor:position():distance_to_sqr(proxy:position())
+				if (d <= GIVE_RADIUS * GIVE_RADIUS) then
+					return proxy, d
+				end
+			end
+			return nil
+		end
+	end
+end
+
+function refresh_peers()
+	peers = {}
+	if not coop_on() then
+		return
+	end
+	local P = XrrPlayers()
+	local list = {}
+	for i = 1, P:GetPeerCount() do
+		local netid = P:GetPeerNetidAt(i)
+		if netid and (netid ~= "") and (netid ~= "0") then
+			local proxy, d = peer_near(netid)
+			if proxy then
+				local nick = proxy:character_name()
+				if (not nick) or (nick == "") then
+					nick = proxy:name()
+				end
+				list[#list + 1] = { netid = netid, nick = nick or "?", d = d }
+			end
+		end
+	end
+	table.sort(list, function(a, b) return a.d < b.d end)
+	for i = 1, math.min(#list, GIVE_SLOTS) do
+		peers[i] = list[i]
+	end
+end
+
+local function owned_by_actor(o)
+	local p = o:parent()
+	return p and (p:id() == AC_ID) or false
+end
+
+local function give_finish(reason)
+	local q = give_queue
+	give_queue = nil
+	if (not q) then
+		return
+	end
+	local msg = tr("st_qct_gave", q.nick, q.sent, q.wanted)
+	if reason then
+		msg = msg .. " " .. tr(reason)
+	end
+	actor_menu.set_msg(1, msg, 5)
+	printf("%s give %s x%s/%s to %s %s", LOG, q.sec, q.sent, q.wanted, q.nick, reason or "done")
+end
+
+function give_tick()
+	local q = give_queue
+	if (not q) then
+		return
+	end
+	local now = time_continual()
+	if (now < q.next_t) then
+		return
+	end
+	q.next_t = now + GIVE_STEP_MS
+
+	if not coop_on() or not peer_near(q.netid) then
+		return give_finish("st_qct_give_far")
+	end
+
+	-- Skip items that are no longer ours; send the next valid one
+	while q.ids[q.k] do
+		local id = q.ids[q.k]
+		q.k = q.k + 1
+		local o = level.object_by_id(id)
+		if o and (not q.done[id]) and (o:section() == q.sec) and owned_by_actor(o) then
+			q.done[id] = true
+			local ok, err = pcall(function()
+				XrrPlayers():SendGiveItem(q.netid, id)
+			end)
+			if (not ok) then
+				printe("!ERROR %s SendGiveItem: %s", LOG, tostring(err))
+				return give_finish("st_qct_stop_error")
+			end
+			q.sent = q.sent + 1
+			return
+		end
+	end
+	give_finish((q.sent < q.wanted) and "st_qct_give_less" or nil)
+end
+
+local function start_give(ctx, n)
+	if give_queue then
+		return actor_menu.set_msg(1, tr("st_qct_give_busy"), 4)
+	end
+	local gui = ctx.gui
+	if not (gui and gui:IsShown() and (gui.mode == "inventory")) then
+		return
+	end
+	if not (coop_on() and peer_near(ctx.netid)) then
+		return actor_menu.set_msg(1, tr("st_qct_give_far"), 4)
+	end
+
+	-- Re-validate the stack: still in the bag, still ours, best first
+	local ids = {}
+	for _, e in ipairs(sorted_stack(gui, "actor_bag", ctx.sec, ctx.ids)) do
+		local o = level.object_by_id(e.id)
+		if o and owned_by_actor(o) then
+			ids[#ids + 1] = e.id
+		end
+	end
+	n = math.min(math.floor(tonumber(n) or 0), #ids)
+	if (n < 1) then
+		return
+	end
+	for k = #ids, n + 1, -1 do
+		ids[k] = nil
+	end
+
+	give_queue = {
+		ids = ids, k = 1, done = {}, sent = 0, wanted = n,
+		sec = ctx.sec, netid = ctx.netid, nick = ctx.nick, next_t = 0,
+	}
+	give_tick()
+end
+
+function open_give_dialog(gui, id, bag, slot)
+	if qct_dialog.is_open() or (gui.mode ~= "inventory") or (bag ~= "actor_bag") then
+		return
+	end
+	local peer = peers[slot]
+	if not peer then
+		return
+	end
+	local obj = level.object_by_id(id)
+	if not (obj and owned_by_actor(obj)) or gui:Cond_Quest(obj, bag) then
+		return
+	end
+	local ids = stack_ids(gui, bag, id)
+	if not ids then
+		return
+	end
+	local list = sorted_stack(gui, bag, obj:section(), ids)
+	local max = #list
+	if (max < 2) then
+		return
+	end
+
+	local ctx = { gui = gui, sec = obj:section(), ids = ids, netid = peer.netid, nick = peer.nick }
+	local packs = IsAmmo(obj)
+	qct_dialog.open({
+		title = "st_qct_how_many",
+		name  = ui_item.get_sec_name(ctx.sec),
+		info_func = function(n)
+			if (not packs) then
+				return tr("st_qct_give_info", ctx.nick, max)
+			end
+			local units = 0
+			for k = 1, math.min(n, max) do
+				units = units + list[k].units
+			end
+			return tr("st_qct_give_info_units", ctx.nick, units)
+		end,
+		sec   = ctx.sec,
+		max   = max,
+		value = get_opt("start_max") and max or 1,
+		on_ok = function(n)
+			start_give(ctx, n)
+		end,
+	})
+end
+
+local function inv_hotkey(gui)
+	local bag, idx = gui.hover and gui.hover.bag, gui.hover and gui.hover.idx
+	if not (bag and idx) then
+		return
+	end
+	local cc = gui.CC and gui.CC[bag]
+	local ci = cc and cc.cell and cc.cell[idx]
+	if not (ci and ci.ID and ci:IsShown()) then
+		return
+	end
+
+	if (gui.mode == "loot" or gui.mode == "trade") and move_bags[bag] then
+		open_move_dialog(gui, ci.ID, bag)
+
+	-- Own inventory with players around: give to the nearest one
+	elseif (gui.mode == "inventory") and (bag == "actor_bag") and get_opt("ctx_give") then
+		refresh_peers()
+		if peers[1] then
+			open_give_dialog(gui, ci.ID, bag, 1)
+		end
+	end
+end
+
+
+-------------------------------------------------------------------
+-- Install
+-------------------------------------------------------------------
+local function install_workshop()
+	local cls = ui_workshop and ui_workshop.UIWorkshopCraft
+	if not (cls and cls.Craft and cls.UpdateItem and cls.On_CC_Mouse1) then
+		printf("%s workshop: UIWorkshopCraft missing, skipped", LOG)
+		return
+	end
+	if cls.__qct_wrapped then
+		return
+	end
+	cls.__qct_wrapped = true
+
+	local orig_update_item = cls.UpdateItem
+	cls.UpdateItem = function(self, n, sec, amount, result, ...)
+		local res = orig_update_item(self, n, sec, amount, result, ...)
+		if (not result) and n then
+			local ok, err = pcall(reorder_multiuse, self, n, sec, amount)
+			if (not ok) then
+				printe("!ERROR %s multi-use order: %s", LOG, tostring(err))
+			end
+		end
+		return res
+	end
+
+	local orig_update = cls.Update
+	cls.Update = function(self, ...)
+		orig_update(self, ...)
+		if busy and (busy.token == token_of(self)) then
+			local ok, err = pcall(busy_tick, self)
+			if (not ok) then
+				printe("!ERROR %s batch: %s", LOG, tostring(err))
+				busy = nil
+				if self.btn_craft then self.btn_craft:Show(true) end
+			end
+		end
+	end
+
+	local orig_reset = cls.Reset
+	cls.Reset = function(self, ...)
+		abort_silently(self)
+		return orig_reset(self, ...)
+	end
+
+	local orig_keyboard = cls.OnKeyboard
+	cls.OnKeyboard = function(self, dik, keyboard_action)
+		local res = orig_keyboard(self, dik, keyboard_action)
+		if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and hotkey_match(dik) then
+			local ok, err = pcall(craft_hotkey, self)
+			if (not ok) then
+				printe("!ERROR %s hotkey: %s", LOG, tostring(err))
+			end
+		end
+		return res
+	end
+
+	-- RMB on a recipe: select it and offer "Craft several..."
+	local orig_mouse2 = cls.On_CC_Mouse2
+	cls.On_CC_Mouse2 = function(self, cont, idx)
+		if orig_mouse2 then
+			orig_mouse2(self, cont, idx)
+		end
+		if (cont ~= "list") or busy_blocks() or (not get_opt("ctx_craft")) then
+			return
+		end
+		self:On_CC_Mouse1(cont, idx)
+		local recipe = selected_recipe(self)
+		if not (recipe and self.craft_allow_r) then
+			return
+		end
+		if (not self.__qct_props) then
+			self.__qct_props = utils_ui.UICellProperties(self)
+		end
+		self.__qct_props:Reset(GetCursorPosition(), { "qct_CtxCraft" }, { "st_qct_craft_ctx" }, { {} })
+	end
+
+	cls.qct_CtxCraft = function(self)
+		local ok, err = pcall(open_craft_dialog, self)
+		if (not ok) then
+			printe("!ERROR %s craft dialog: %s", LOG, tostring(err))
+		end
+	end
+
+	printf("%s workshop: batch crafting installed", LOG)
+end
+
+local function install_inventory()
+	local cls = ui_inventory and ui_inventory.UIInventory
+	if not (cls and cls.InitProperties and cls.Action_Move and cls.Cond_Move) then
+		printf("%s inventory: UIInventory missing, skipped", LOG)
+		return
+	end
+	if cls.__qct_wrapped then
+		return
+	end
+	cls.__qct_wrapped = true
+
+	function cls:qct_Cond_Enabled(obj, bag)
+		return get_opt("ctx_move") and true or false
+	end
+
+	function cls:qct_Action_MoveQty(id, bag)
+		local ok, err = pcall(open_move_dialog, self, id, bag)
+		if (not ok) then
+			printe("!ERROR %s move dialog: %s", LOG, tostring(err))
+		end
+	end
+
+	-- xrRazom "Give several: <Nickname>" entries; name_func/action get the id, preconditions the object
+	function cls:qct_Cond_Give(obj, bag, fn_name, i)
+		return get_opt("ctx_give") and (peers[i] ~= nil) and (not self:Cond_Quest(obj, bag)) or false
+	end
+
+	function cls:qct_Name_Give(id, bag, fn_name, i)
+		local peer = peers[i]
+		return peer and tr("st_qct_give_ctx", peer.nick) or false
+	end
+
+	function cls:qct_Action_GiveQty(id, bag, fn_name, i)
+		local ok, err = pcall(open_give_dialog, self, id, bag, i)
+		if (not ok) then
+			printe("!ERROR %s give dialog: %s", LOG, tostring(err))
+		end
+	end
+
+	-- ui_inventory builds the RMB menu from self.properties (already key-indexed after __init)
+	local orig_init_props = cls.InitProperties
+	cls.InitProperties = function(self, obj, bag)
+		local ok, err = pcall(refresh_peers)
+		if (not ok) then
+			peers = {}
+			printe("!ERROR %s peers: %s", LOG, tostring(err))
+		end
+		if self.properties and (not self.properties["qct_give_qty_1"]) then
+			for i = 1, GIVE_SLOTS do
+				self.properties["qct_give_qty_" .. i] = {
+					index         = 34.5 + i, -- after xrRazom's "Send to" entries (27..34)
+					name_func     = { "qct_Name_Give", i },
+					mode          = { inventory = true },
+					cont          = { actor_bag = true },
+					precondition1 = { "qct_Cond_Give", i },
+					precondition2 = { "Cond_Childs" },
+					action        = { "qct_Action_GiveQty", i },
+				}
+			end
+		end
+		if self.properties and (not self.properties["qct_move_qty"]) then
+			self.properties["qct_move_qty"] = {
+				index         = 8.5, -- right after "Move all"
+				name          = "st_qct_move_ctx",
+				mode          = { loot = true, trade = true },
+				cont          = move_bags,
+				precondition1 = { "qct_Cond_Enabled" },
+				precondition2 = { "Cond_Childs" },
+				precondition3 = { "Cond_Move" },
+				action        = { "qct_Action_MoveQty" },
+			}
+		end
+		return orig_init_props(self, obj, bag)
+	end
+
+	-- The give queue also ticks here in case the game does not update the actor behind the UI
+	local orig_inv_update = cls.Update
+	if orig_inv_update then
+		cls.Update = function(self, ...)
+			orig_inv_update(self, ...)
+			if give_queue then
+				local ok, err = pcall(give_tick)
+				if (not ok) then
+					printe("!ERROR %s give: %s", LOG, tostring(err))
+					give_queue = nil
+				end
+			end
+		end
+	end
+
+	local orig_keyboard = cls.OnKeyboard
+	cls.OnKeyboard = function(self, dik, keyboard_action)
+		local res = orig_keyboard(self, dik, keyboard_action)
+		if (keyboard_action == ui_events.WINDOW_KEY_PRESSED) and hotkey_match(dik) then
+			local ok, err = pcall(inv_hotkey, self)
+			if (not ok) then
+				printe("!ERROR %s hotkey: %s", LOG, tostring(err))
+			end
+		end
+		return res
+	end
+
+	printf("%s inventory: move quantity installed", LOG)
+end
+
+function on_game_start()
+	-- After every on_game_start: the workshop chain (UpdateItem/Craft) is assembled by several mods there
+	RegisterScriptCallback("actor_on_first_update", function()
+		local ok, err = pcall(install_workshop)
+		if (not ok) then printe("!ERROR %s workshop install: %s", LOG, tostring(err)) end
+		ok, err = pcall(install_inventory)
+		if (not ok) then printe("!ERROR %s inventory install: %s", LOG, tostring(err)) end
+	end)
+
+	RegisterScriptCallback("actor_on_update", function()
+		if give_queue then
+			local ok, err = pcall(give_tick)
+			if (not ok) then
+				printe("!ERROR %s give: %s", LOG, tostring(err))
+				give_queue = nil
+			end
+		end
+	end)
+end
