@@ -1,10 +1,7 @@
 {
   "section": "xrRazom Sync",
   "mods": [
-    "Quantity Craft and Transfer",
-    "zz Task Generation Speed Fix",
     "zz xrRazom Fix - Ledge Grabbing",
-    "Combined GAMMA NPC Loot Claim v.1.2.1",
     "zz xrRazom Fix - Taskboard Refresh",
     "zz xrRazom Fix - Laser State",
     "zz xrRazom Fix - Remember Belt",
@@ -13,7 +10,6 @@
     "zz xrRazom Fix - Taskboard Peer Details",
     "zz xrRazom Fix - Quest Vars Sync",
     "zz xrRazom Fix - Fetch Reward",
-    "zz Workshop Ammo Material Fix",
     "zz xrRazom Fix - Kill Tracker Mirror Corpses"
   ]
 }
