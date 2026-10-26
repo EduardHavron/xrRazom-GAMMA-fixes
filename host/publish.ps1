@@ -288,19 +288,20 @@ $sepIdx = -1
 for ($i = 0; $i -lt $lines.Count; $i++) {
     if ($lines[$i].Length -gt 1 -and $lines[$i].Substring(1) -eq "${section}_separator") { $sepIdx = $i; break }
 }
-if ($sepIdx -lt 0) {
-    Fail ("В профиле '$mo2Profile' нет разделителя '$section'.`n" +
-          "Создайте его в MO2 (ПКМ по списку модов -> Create Separator, имя: $section)`n" +
-          "и перетащите в него моды-фиксы, которые нужно раздавать.")
-}
 $mods = @()
+$sectionLines = 0
 for ($i = $sepIdx - 1; $i -ge 0; $i--) {
     $l = $lines[$i]
     if ($l.StartsWith('#') -or $l.Length -lt 2) { continue }
     if ($l.EndsWith('_separator')) { break }
+    $sectionLines++
     if ($l.StartsWith('+')) { $mods = @($l.Substring(1)) + $mods }
 }
-if ($mods.Count -eq 0) {
+# PUB-047: no separator or no mod lines at all = first install on this machine: the pack comes from GitHub
+$fresh = ($sepIdx -lt 0) -or ($sectionLines -eq 0)
+if ($fresh) {
+    Write-Host "Секция '$section' пуста или отсутствует - первая установка: моды пакета ставятся с GitHub." -ForegroundColor Cyan
+} elseif ($mods.Count -eq 0) {
     Fail "В секции '$section' нет включённых модов. Перетащите фиксы под разделитель '$section' в MO2 и включите их."
 }
 $missing = @($mods | Where-Object { -not (Test-Path -LiteralPath "$gammaRoot\mods\$_" -PathType Container) })
@@ -413,6 +414,7 @@ foreach ($n in $allNames) {
         if ($takeR.ContainsKey($n) -or ($s -eq 'conflict' -and $takeAllR)) { $s = 'remote' }
         elseif ($takeL.ContainsKey($n) -or ($s -eq 'conflict' -and $takeAllL)) { $s = 'local' }
     }
+    if ($fresh -and $s -ne 'sync' -and $s -ne 'equal') { $s = 'remote' }
     $status[$n] = $s
     if ($s -eq 'remote') { $finalKey[$n] = $R } else { $finalKey[$n] = $L }
     if ($s -eq 'conflict') { $conflicts += $n }

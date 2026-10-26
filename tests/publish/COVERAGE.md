@@ -16,7 +16,7 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 | PUB-003 | `PUB-003 PUB-038 push=No / push=НЕТ ...` |
 | PUB-004 | `PUB-004 PUB-044 mutex held ...`, `PUB-004 mutex taken after ini/.git/git checks ...`, `PUB-004 without -NoWait waits ...`, `PUB-004 abandoned mutex ...`; release on exit: `PUB-022 PUB-042 ...`, `PUB-028 PUB-030 PUB-042 ...` |
 | PUB-005 | `PUB-005 profile from selected_profile=@ByteArray(...) ...` |
-| PUB-006 | `PUB-006 separator ...` |
+| PUB-006 | `PUB-006 PUB-047 separator ...` |
 | PUB-007 | `PUB-007 PUB-034 L = "+" lines ...` |
 | PUB-008 | `PUB-008 empty L ...` |
 | PUB-009 | `PUB-009 unfinished merge / rebase` (MERGE_HEAD, rebase-merge; the other three markers use the same loop) |
@@ -57,6 +57,7 @@ fake MO2 process, mutex holder), `cases_publish.ps1`, `cases_publish2.ps1`, `cas
 | PUB-044 | `PUB-004 PUB-044 ...`, `PUB-024 PUB-044 SYS-009 ...`, `PUB-044 ... blocker and mutex held ...` |
 | PUB-045 | `PUB-045 docs (changed, new, under every doc path) go in a separate commit ...`, `PUB-045 docs only: one commit ...`, `PUB-045 deleted doc file ... -SyncOnly never commits docs`; `PUB-034 SYS-013 REPO-013 ...` (README in its own commit) |
 | PUB-046 | `PUB-046 spec_check errors keep docs out ...`, `PUB-046 no python or check code 2 ...` (python cases skip without python) |
+| PUB-047 | `PUB-047 empty section on a fresh machine ...`, `PUB-006 PUB-047 separator ...` (no separator) |
 
 ## installer.md (INS)
 

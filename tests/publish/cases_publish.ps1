@@ -170,13 +170,16 @@ Test-Case 'PUB-005 profile from selected_profile=@ByteArray(...), from publish.i
     Assert-Out $r 'profiles\Missing\modlist.txt'
 }
 
-Test-Case 'PUB-006 separator: missing -> exit 1; "-" prefix accepted; custom section name' {
+Test-Case 'PUB-006 PUB-047 separator: missing -> first install from GitHub; "-" prefix accepted; custom section name' {
     $sb = New-Sandbox
     $orig = Get-Modlist $sb.H
+    $head0 = Get-HeadSha "$($sb.Origin)"
     Set-Modlist $sb.H @($orig | Where-Object { $_ -ne "+$script:SEP" })
     $r = Invoke-Publish $sb 'H' @('-NoPrompt')
-    Assert-Code 1 $r
-    Assert-Out $r "нет разделителя 'xrRazom Sync'"
+    Assert-Code 0 $r 'no separator'
+    Assert-Out $r "Секция 'xrRazom Sync' пуста или отсутствует - первая установка"
+    Assert-Equal (Join-L @($script:SEED_ORDER | ForEach-Object { "+$_" })) (Join-L (Get-Section $sb.H)) 'pack installed into a new section'
+    Assert-Equal $head0 (Get-HeadSha "$($sb.Origin)") 'nothing published'
 
     Set-Modlist $sb.H @($orig | ForEach-Object { if ($_ -eq "+$script:SEP") { "-$script:SEP" } else { $_ } })
     $r = Invoke-Publish $sb 'H' @('-NoPrompt')
@@ -204,6 +207,22 @@ Test-Case 'PUB-007 PUB-034 L = "+" lines between previous separator and ours; re
     $paths = Get-OriginPaths $sb
     Assert-Equal 0 @($paths | Where-Object { $_ -like 'mods/modX/*' -or $_ -like 'mods/zz Фикс Y/*' }).Count 'removed mods deleted in commit'
     Assert-Equal 'Update fixes: modX, zz Фикс Y' ((Invoke-Proc 'git.exe' @('--git-dir', $sb.Origin, 'log', '-1', '--format=%s', 'main')).Out.Trim()) 'PUB-036 auto message'
+}
+
+Test-Case 'PUB-047 empty section on a fresh machine: -SyncOnly installs the whole pack, nothing published' {
+    $sb = New-Sandbox
+    $head0 = Get-HeadSha "$($sb.Origin)"
+    foreach ($n in $script:SEED_ORDER) { Remove-Item -LiteralPath "$($sb.H)\mods\$n" -Recurse -Force }
+    Set-Modlist $sb.H @('# h', "+$script:SEP", '+Other mod', '+Below')
+    $r = Invoke-Publish $sb 'H' @('-SyncOnly', '-NoWait', '-NoPrompt')
+    Assert-Code 0 $r
+    Assert-Out $r 'первая установка'
+    Assert-Equal "# h|$(Join-L @($script:SEED_ORDER | ForEach-Object { "+$_" }))|+$script:SEP|+Other mod|+Below" (Join-L (Get-Modlist $sb.H)) 'section filled, foreign mods untouched'
+    foreach ($n in $script:SEED_ORDER) { Assert-PathExists "$($sb.H)\mods\$n" }
+    Assert-Equal $head0 (Get-HeadSha "$($sb.Origin)") 'nothing published'
+    $r = Invoke-Publish $sb 'H' @('-NoPrompt')
+    Assert-Code 0 $r 'second run'
+    Assert-Out $r 'всё совпадает'
 }
 
 Test-Case 'PUB-008 empty L -> exit 1; missing mod folders listed -> exit 1' {
