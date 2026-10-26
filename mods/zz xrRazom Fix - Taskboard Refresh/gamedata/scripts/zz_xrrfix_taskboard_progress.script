@@ -11,7 +11,8 @@
   The refreshed NPCs' old lists are cleared first, so the board shows only fresh answers.
 ]]
 
-local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+-- Anomaly's printf substitutes %s only: format numbers here
+local function L(fmt, ...) printf("%s", "[XRRFIX] " .. string.format(fmt, ...)) end
 
 local REDRAW_MS = 500
 

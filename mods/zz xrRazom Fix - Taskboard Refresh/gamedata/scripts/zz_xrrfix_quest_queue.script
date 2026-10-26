@@ -12,7 +12,8 @@
   from actor_on_update within a time budget per update (at least one per update).
 ]]
 
-local function L(fmt, ...) printf("[XRRFIX] " .. fmt, ...) end
+-- Anomaly's printf substitutes %s only: format numbers here
+local function L(fmt, ...) printf("%s", "[XRRFIX] " .. string.format(fmt, ...)) end
 
 local BUDGET_MS = 8
 
