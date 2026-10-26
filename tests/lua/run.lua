@@ -18,14 +18,10 @@ local files = {
 	"test_laser.lua",
 	"test_belt.lua",
 	"test_parts.lua",
-	"test_wsammo.lua",
 	"test_killtr.lua",
-	"test_lootclaim.lua",
 	"test_ledge.lua",
 	"test_qlist.lua",
 	"test_qlist_peer.lua",
-	"test_tgen.lua",
-	"test_qct.lua",
 }
 
 for _, f in ipairs(files) do

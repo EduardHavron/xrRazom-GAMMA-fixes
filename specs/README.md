@@ -38,7 +38,7 @@ specs/
 | AGT | system/agent.md |
 | CHK | system/spec-check.md |
 | FX-<КОД> | fixes/fx-*.md (код фикса, напр. `FX-FETCH-003`) |
-| MOD-<КОД> | fixes/mod-*.md (сторонний мод в пакете, напр. `MOD-LOOTCLAIM-005`) |
+| MOD-<КОД> | fixes/mod-*.md (сторонний мод в пакете, напр. `MOD-XXX-005`) |
 
 Каждое требование — одна проверяемая фраза с модальностью **ДОЛЖЕН / НЕ ДОЛЖЕН / МОЖЕТ**.
 К требованию — критерии приёмки в виде *Дано / Когда / Тогда*, достаточно точные, чтобы написать по ним тест.
@@ -113,11 +113,9 @@ specs/
 | FX-LASER | zz xrRazom Fix - Laser State | состояние лазеров пира после переподключения |
 | FX-BELT | zz xrRazom Fix - Remember Belt | память пояса Remember Outfit Belt у пира |
 | FX-PARTS | zz xrRazom Fix - Weapon Parts Tooltip | вылет пира на подсказке оружия из трупа |
-| FX-WSAMMO | zz Workshop Ammo Material Fix | верстак списывает все коробки-материалы |
 | FX-KILLTR | zz xrRazom Fix - Kill Tracker Mirror Corpses | метки КПК: трупы-зеркала не «убиты пиром» |
 | FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag и прыжок GAMMA в коопе |
 | FX-QLIST | zz xrRazom Fix - Taskboard Refresh | «Обновить» в Taskboard у пира: без просадки у хоста, задания показываются по мере ответов |
-| FX-TGEN | zz Task Generation Speed Fix | генерация заданий без повторных сканов мира (память предусловий, общий скан bounty) + профилировщик |
 
 ## Другие моды в пакете
 
@@ -126,7 +124,8 @@ specs/
 Описание от автора мода переносится в его спеку (в «Решение» — устройство, настройки, отладка; можно добавить раздел
 «История версий»), а не хранится в папке мода.
 
+Сейчас таких модов в пакете нет: Combined GAMMA NPC Loot Claim и Quantity Craft and Transfer переехали в
+[GAMMA-fixes](https://github.com/EduardHavron/GAMMA-fixes).
+
 | ID | Мод | Кратко | Спека |
 |---|---|---|---|
-| MOD-LOOTCLAIM | Combined GAMMA NPC Loot Claim v.1.2.1 | право на лут с MCM, убийства пира в коопе = убийства игрока | [mod-lootclaim.md](fixes/mod-lootclaim.md) |
-| MOD-QCT | Quantity Craft and Transfer | «Сколько?»: крафт N раз одним запросом, перенос и передача игроку N предметов стопки | [mod-qct.md](fixes/mod-qct.md) |
