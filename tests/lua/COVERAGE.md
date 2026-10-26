@@ -67,6 +67,7 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-QLIST-013 | FX-QLIST-013 final redraw after xrRazom's on_complete; empty NPC list completes at once | test_qlist_peer.lua |
 | FX-QLIST-014 | FX-QLIST-014 host: wrappers pass through | test_qlist_peer.lua |
 | FX-QLIST-015 | FX-QLIST-015 redraw errors logged once per refresh; destroyed tab is not redrawn | test_qlist_peer.lua |
+| FX-QLIST-016 | FX-QLIST-016 log lines carry numbers with Anomaly's %s-only printf | test_qlist.lua |
 
 ## Expected failures
 

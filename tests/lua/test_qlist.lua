@@ -36,6 +36,13 @@ local function setup(opts)
 		end
 	end
 	G.XrrIsHost = function() return opts.host ~= false end
+	if opts.anomaly_printf then
+		-- Anomaly's printf/strformat substitute %s only; other specifiers stay in the text
+		G.printf = function(f, ...)
+			local args, i = { ... }, 0
+			G.__log[#G.__log + 1] = (string.gsub(f, "%%s", function() i = i + 1; return tostring(args[i]) end))
+		end
+	end
 	if not opts.no_quests then H.lazy(G, "xrr_patch_quests", QUESTS_SRC) end
 	local fix = H.load_fix(G, MOD, FILE)
 	fix.on_game_start()
@@ -162,4 +169,14 @@ H.case("FX-QLIST-008 level change drops the queue without running it", function(
 	H.same({ 1 }, npcs(q), "queued requests never ran")
 	req(G, 1, 9)
 	H.same({ 1, 9 }, npcs(q), "fresh window after the clear: immediate")
+end)
+
+H.case("FX-QLIST-016 log lines carry numbers with Anomaly's %s-only printf", function()
+	local G = setup({ anomaly_printf = true })
+	H.log_has(G, MARKER)
+	for npc = 1, 3 do req(G, 1, npc) end
+	update(G)
+	update(G)
+	H.log_has(G, "[XRRFIX] questq: 3 requests (0 duplicates) over 1 updates, total 9 ms, max 3 ms")
+	H.log_lacks(G, "%d", "no raw specifiers")
 end)
