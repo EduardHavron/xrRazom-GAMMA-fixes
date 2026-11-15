@@ -1,6 +1,9 @@
 # FX-LASER: состояние лазеров пира после переподключения
-Статус: действует        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Laser State`        Скрипт: `gamedata/scripts/zz_xrrfix_laser.script`
+Статус: удалено        Проверка в игре: не записана        Мод: `zz xrRazom Fix - Laser State`        Скрипт: `gamedata/scripts/zz_xrrfix_laser.script`
 Где ставить: оба (в заголовке скрипта — «каждый пир», но приём/выдача райдера идут и через хост, см. «Причина»)        Зависит от: xrRazom Co-op 1.4 (`xrr_item_mdata.declare`), Laser Settings (`zzz_bas_laser_control`)        Лог-маркер: `[XRRFIX] laser: saved_lasers_id declared as per-item rider`
+
+> **Удалено 2026-11-16: интегрировано в xrRazom 1.5** (подтвердил автор xrRazom). xrRazom 1.5 сам объявляет райдер: `xrr_item_mdata.script` — `if zzz_bas_laser_control then declare("saved_lasers_id") end`.
+> Мод убран из пакета, тесты удалены; документ оставлен для истории.
 
 ## Проблема
 Пир включает ЛЦУ на оружии, выходит и снова подключается — лазеры на всём его оружии выключены.
@@ -26,26 +29,26 @@
 `load_state` дают моду таблицу, куда пишут райдеры.
 
 ## Требования
-### FX-LASER-001 Ключ задекларирован как райдер  [auto]
+### ~~FX-LASER-001 Ключ задекларирован как райдер~~ (удалено)  [auto]
 При наличии Laser Settings и xrRazom ключ `saved_lasers_id` ДОЛЖЕН быть в `xrr_item_mdata.manifest`.
 - Дано заглушки `zzz_bas_laser_control = {}` и `xrr_item_mdata` с реальной `declare`
   Когда вызывается `on_game_start` фикса
   Тогда в `manifest` ровно один элемент с `key == "saved_lasers_id"`, лог `laser: saved_lasers_id declared as per-item rider`.
 
-### FX-LASER-002 Идемпотентность  [auto]
+### ~~FX-LASER-002 Идемпотентность~~ (удалено)  [auto]
 Повторная установка НЕ ДОЛЖНА дублировать ключ в манифесте.
 - Дано `on_game_start` фикса вызван дважды
   Когда проверяется `manifest`
   Тогда `saved_lasers_id` встречается один раз (гарантируется `declare`).
 
-### FX-LASER-003 Пропуск без зависимостей  [auto]
+### ~~FX-LASER-003 Пропуск без зависимостей~~ (удалено)  [auto]
 Без Laser Settings или без `xrr_item_mdata.declare` фикс НЕ ДОЛЖЕН ничего декларировать и ДОЛЖЕН залогировать пропуск.
 - Дано `zzz_bas_laser_control == nil`
   Тогда лог `laser: Laser Settings not installed, skipped`, `declare` не вызван.
 - Дано Laser Settings есть, `xrr_item_mdata == nil`
   Тогда лог `laser: xrr_item_mdata.declare missing, skipped`.
 
-### FX-LASER-004 Лазер пира переживает переподключение  [manual]
+### ~~FX-LASER-004 Лазер пира переживает переподключение~~ (удалено)  [manual]
 Включённый пиром лазер ДОЛЖЕН оставаться включённым после выхода и повторного подключения.
 - Дано пир включил лазер на оружии в слоте, подождал ≥ 2 с (опрос райдеров раз в секунду)
   Когда пир отключается и подключается снова, берёт это оружие

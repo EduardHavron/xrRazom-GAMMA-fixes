@@ -1,9 +1,7 @@
--- FX-LEDGE: zz_xrrfix_ledge_grabbing.script + DLTX jump config (specs/fixes/fx-ledge.md)
+-- FX-LEDGE: zz_xrrfix_ledge_grabbing.script (specs/fixes/fx-ledge.md)
 local H = ...
 
 local MOD, FILE = "zz xrRazom Fix - Ledge Grabbing", "zz_xrrfix_ledge_grabbing"
-local LTX = "mod_system_zzzzzzzzzzzzzzz_xrrfix_ledge_jump.ltx"
-local XRR_LTX = "mod_system_zzzzzzzzzzzzzz_xrmpe_chemzs_actor.ltx"
 local MARKER = "[XRRFIX] ledge: continuous ledge detection restored"
 local NOT_FOUND = "[XRRFIX] ledge: Anti-Lag ledge script not found, nothing to do"
 
@@ -108,27 +106,4 @@ H.case("FX-LEDGE-005 error while patching is caught and logged", function()
 	G.demonized_ledge_grabbing = setmetatable({}, { __index = function() error("boom", 0) end })
 	fix.on_game_start()
 	H.log_has(G, "[XRRFIX] ledge: patch failed: boom")
-end)
-
-local function ltx_lines()
-	local src = H.read_file(H.root .. "/mods/" .. MOD .. "/gamedata/configs/" .. LTX)
-	local out = {}
-	for line in (src .. "\n"):gmatch("([^\n]*)\n") do
-		line = line:gsub("\r$", ""):gsub(";.*$", ""):match("^%s*(.-)%s*$")
-		if line ~= "" then out[#out + 1] = line end
-	end
-	return out
-end
-
-H.case("FX-LEDGE-006 DLTX override of [actor] sets only jump_speed = 6.85", function()
-	local lines = ltx_lines()
-	H.eq("![actor]", lines[1], "section override")
-	H.eq(2, #lines, "one key")
-	local k, v = lines[2]:match("^([%w_]+)%s*=%s*(.-)$")
-	H.eq("jump_speed", k, "key")
-	H.eq("6.85", v, "value")
-end)
-
-H.case("FX-LEDGE-006 config file sorts after the xrRazom actor config", function()
-	H.truthy(LTX > XRR_LTX, LTX .. " must sort after " .. XRR_LTX)
 end)

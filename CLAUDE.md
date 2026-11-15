@@ -147,11 +147,11 @@
 | `tests/publish` | publish + installer | `powershell -NoProfile -ExecutionPolicy Bypass -File tests\publish\run.ps1` |
 | `tests/agent` | агент | `powershell -NoProfile -ExecutionPolicy Bypass -File tests\agent\run.ps1` |
 
-- Имя теста начинается с ID требования: `H.case("FX-FETCH-004 ...")`, `Test-Case 'PUB-012 ...'`.
+- Имя теста начинается с ID требования: `H.case("FX-QLIST-004 ...")`, `Test-Case 'PUB-012 ...'`.
 - Lua-тесты грузят **настоящий** скрипт из `mods/` (`H.load_fix`); сторонние модули — маленькие заглушки с теми же
   сигнатурами. Новый колбэк X-Ray — добавить в `KNOWN_CALLBACKS` в `tests/lua/harness.lua`.
 - Спека говорит одно, а код другое и чинить пока не будем — `H.xfail(...)` (EXPECTED-FAIL), отметить в `COVERAGE.md`
-  и `tests/README.md`. Сейчас такой один: `FX-BELT-002`.
+  и `tests/README.md`. Сейчас таких нет.
 - Новый набор тестов проверять мутациями: сломать копию скрипта (`XRR_TEST_ROOT`) и убедиться, что падает нужный тест.
 - PowerShell-наборы работают во временных папках и не трогают реальные моды, `%LOCALAPPDATA%\xrrfix`, планировщик и GitHub.
   `tests/publish` и `tests/agent` не запускать одновременно.

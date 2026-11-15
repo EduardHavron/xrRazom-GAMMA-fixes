@@ -13,11 +13,6 @@ H.root = (os.getenv and os.getenv("XRR_TEST_ROOT")) or (dir .. "/../..")
 local files = {
 	"test_qvars.lua",
 	"test_tboard.lua",
-	"test_turnin.lua",
-	"test_fetch.lua",
-	"test_laser.lua",
-	"test_belt.lua",
-	"test_parts.lua",
 	"test_killtr.lua",
 	"test_ledge.lua",
 	"test_qlist.lua",

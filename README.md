@@ -69,17 +69,16 @@ MO2, секция "xrRazom Sync" ──host/publish.bat──▶ main (mods/, pa
 |---|---|---|---|---|
 | zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий доходят до пира | хост и пир | не записана | [FX-QVARS](specs/fixes/fx-qvars.md) |
 | zz xrRazom Fix - Taskboard Peer Details | у пира заполнены карточки PDA Taskboard Redesign | пир | не записана | [FX-TBOARD](specs/fixes/fx-tboard.md) |
-| zz xrRazom Fix - Turned-in Task Sync | пир не получает заново уже сданные повторяемые задания | пир | не записана | [FX-TURNIN](specs/fixes/fx-turnin.md) |
-| zz xrRazom Fix - Fetch Reward | честная награда за задания «принеси» (без переплаты и недоплаты) | хост | не записана | [FX-FETCH](specs/fixes/fx-fetch.md) |
-| zz xrRazom Fix - Laser State | лазеры пира не выключаются после переподключения | хост и пир | не записана | [FX-LASER](specs/fixes/fx-laser.md) |
-| zz xrRazom Fix - Remember Belt | Remember Outfit Belt помнит пояс пира после переподключения | хост и пир | не записана | [FX-BELT](specs/fixes/fx-belt.md) |
-| zz xrRazom Fix - Weapon Parts Tooltip | пир не вылетает при наведении на оружие в трупе (Momopate's Barrel Condition) | пир | не записана | [FX-PARTS](specs/fixes/fx-parts.md) |
 | zz xrRazom Fix - Kill Tracker Mirror Corpses | Milspec PDA не помечает трупы-зеркала как убитые пиром | пир | не проводилась | [FX-KILLTR](specs/fixes/fx-killtr.md) |
-| zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag; прыжок снова высотой GAMMA (xrRazom его занижал) | хост и пир | не проводилась | [FX-LEDGE](specs/fixes/fx-ledge.md) |
+| zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы срабатывает сразу, как без Anti-Lag | хост и пир | не проводилась | [FX-LEDGE](specs/fixes/fx-ledge.md) |
 | zz xrRazom Fix - Taskboard Refresh | когда друг жмёт «Обновить» в заданиях PDA, у хоста нет многосекундной просадки FPS, а у друга задания появляются по мере поиска | хост и пир | не проводилась | [FX-QLIST](specs/fixes/fx-qlist.md) |
 
 Фиксы и моды самой GAMMA (Workshop Ammo Material Fix, Task Generation Speed Fix, Quantity Craft and Transfer,
 Combined GAMMA NPC Loot Claim) — вместе с их кооп-частями — переехали в [GAMMA-fixes](https://github.com/EduardHavron/GAMMA-fixes) — секция MO2 «GAMMA Sync», свой агент.
+
+Удалены, потому что исправлены в самом xrRazom 1.5 (подтвердил его автор): Laser State, Turned-in Task Sync, Fetch Reward,
+Remember Belt, Weapon Parts Tooltip. Их спеки оставлены со статусом `удалено` (`specs/fixes/fx-laser.md` и др.).
+С xrRazom 1.4 эти баги вернутся — пакет рассчитан на 1.5.
 
 `FX-*` — наши фиксы, `MOD-*` — сторонние, переработанные или собственные моды (не фиксы; сейчас в пакете таких нет).
 

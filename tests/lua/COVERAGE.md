@@ -17,28 +17,28 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-TBOARD-003 | FX-TBOARD-003 empty card gets subtitle/body/icon from the host preview | test_tboard.lua |
 | FX-TBOARD-004 | FX-TBOARD-004 no change out of session / nil card / no preview / empty text | test_tboard.lua |
 | FX-TBOARD-005 | FX-TBOARD-005 diagnostic line once per task_id per session | test_tboard.lua |
-| FX-TURNIN-001 | FX-TURNIN-001 peer drops stage-255 syncs for tasks it does not have | test_turnin.lua |
-| FX-TURNIN-002 | FX-TURNIN-002 active task (task_info[id].t) still gets stage 255 | test_turnin.lua |
-| FX-TURNIN-003 | FX-TURNIN-003 other stages pass through with all args and return values | test_turnin.lua |
-| FX-TURNIN-004 | FX-TURNIN-004 host never filters | test_turnin.lua |
-| FX-TURNIN-005 | manual | |
-| FX-FETCH-001 | FX-FETCH-001 inventory_value matches the Tasks QoL formula; artefact class with eco type 3; weapon condition = mean of prt_w_* | test_fetch.lua |
-| FX-FETCH-002 | FX-FETCH-002 belt items do not count; multiuse; sum below 50 raised to 50 | test_fetch.lua |
-| FX-FETCH-003 | FX-FETCH-003 host items first; best peer avatar; no holder -> nominal; no fetch_reward_and_remove -> original | test_fetch.lua |
-| FX-FETCH-004 | FX-FETCH-004 both completion calls pay > 0 from the same holder | test_fetch.lua |
-| FX-FETCH-005, -006 | manual | |
-| FX-LASER-001 | FX-LASER-001 saved_lasers_id declared as an item rider | test_laser.lua |
-| FX-LASER-002 | FX-LASER-002 second install does not duplicate the key | test_laser.lua |
-| FX-LASER-003 | FX-LASER-003 skipped without Laser Settings or without xrr_item_mdata | test_laser.lua |
-| FX-LASER-004 | manual | |
-| FX-BELT-001 | FX-BELT-001 beltMemory registered once, travels whole | test_belt.lua |
-| FX-BELT-002 | FX-BELT-002 load_state normalizes keys in place; **EXPECTED-FAIL** FX-BELT-002 numeric outfit key: items/date normalized in place | test_belt.lua |
-| FX-BELT-003 | FX-BELT-003 save_belt ignored for 10 s after first update in a session; solo: no grace | test_belt.lua |
-| FX-BELT-004, -005 | manual | |
-| FX-PARTS-001 | FX-PARTS-001 module spairs(nil) is an empty loop, logged once | test_parts.lua |
-| FX-PARTS-002 | FX-PARTS-002 tables iterate exactly like the global spairs | test_parts.lua |
-| FX-PARTS-003 | FX-PARTS-003 global spairs untouched, installed once | test_parts.lua |
-| FX-PARTS-004, -005 | manual | |
+| FX-TURNIN-001 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-TURNIN-002 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-TURNIN-003 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-TURNIN-004 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-TURNIN-005 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-FETCH-001 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-FETCH-002 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-FETCH-003 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-FETCH-004 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-FETCH-005, -006 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-LASER-001 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-LASER-002 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-LASER-003 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-LASER-004 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-BELT-001 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-BELT-002 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-BELT-003 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-BELT-004, -005 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-PARTS-001 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-PARTS-002 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-PARTS-003 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
+| FX-PARTS-004, -005 | removed: integrated into xrRazom 1.5 (spec status `удалено`) | — |
 | FX-KILLTR-001 | FX-KILLTR-001 peer: actor kill without a hit is not recorded; skip log limited to 5 | test_killtr.lua |
 | FX-KILLTR-002 | FX-KILLTR-002 hit within 60 s counts, mark cleared, after 60 s not; before_hit draftsman / monster callbacks | test_killtr.lua |
 | FX-KILLTR-003 | FX-KILLTR-003 silent kill passes, flag reset after return and after error | test_killtr.lua |
@@ -50,8 +50,9 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 | FX-LEDGE-003 | FX-LEDGE-003 second on_game_start keeps the same updater and logs once | test_ledge.lua |
 | FX-LEDGE-004 | FX-LEDGE-004 original Demonized script untouched; no Ledge Grabbing module | test_ledge.lua |
 | FX-LEDGE-005 | FX-LEDGE-005 error while patching is caught and logged | test_ledge.lua |
-| FX-LEDGE-006 | FX-LEDGE-006 DLTX override sets only jump_speed = 6.85; file sorts after the xrRazom actor config | test_ledge.lua |
-| FX-LEDGE-007, -008 | manual | |
+| FX-LEDGE-006 | removed: xrRazom 1.5 no longer lowers jump_speed, the config was dropped | — |
+| FX-LEDGE-007 | manual | |
+| FX-LEDGE-008 | removed together with FX-LEDGE-006 | — |
 | FX-QLIST-001 | FX-QLIST-001 force-loads xrr_patch_quests, wraps once, logs the marker; without the handler: logged and skipped | test_qlist.lua |
 | FX-QLIST-002 | FX-QLIST-002 peer: every call passes straight through with all arguments | test_qlist.lua |
 | FX-QLIST-003 | FX-QLIST-003 lone request on the host runs at once | test_qlist.lua |
@@ -71,16 +72,13 @@ Third-party modules are replaced by small stand-ins that copy the signatures and
 
 ## Expected failures
 
-- **FX-BELT-002 (numeric outfit key)**: the requirement says every entry is normalized in place (`items` -> `{[number]=true}`,
-  `date` -> number). `normalize()` loops over `dup_table(mem)`, and Anomaly's `dup_table` is a DEEP copy (`copy_table` recurses).
-  An entry whose outfit key is already a number is normalized on the copy only, so the stored entry keeps string item ids and a
-  string date. The spec's own example (string key `"101"`) passes because renamed entries store the copy.
+None.
 
 ## Notes on test seams
 
-- File locals (`inventory_value`, `last_hit`, `in_silent`, `grace_until`) are checked through what they cause, not read directly.
-  Examples: `inventory_value` through the `math.random` bounds of `calc_fetch_money`; `last_hit[500] == nil` through a second death
-  of the same victim being dropped; `in_silent == false` through the next plain kill being filtered.
+- File locals (`last_hit`, `in_silent`) are checked through what they cause, not read directly.
+  Examples: `last_hit[500] == nil` through a second death of the same victim being dropped; `in_silent == false` through the
+  next plain kill being filtered.
 - `utils_data.string2hex`/`hex2string` and `marshal` are pure-Lua stand-ins. `hex2string` raises an error on non-hex input.
 - `XRR_TEST_ROOT=<dir>` points the loader at another `mods/` tree. It was used once to confirm that a deliberately broken fix
   makes the matching case fail.

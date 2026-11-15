@@ -108,14 +108,21 @@ specs/
 |---|---|---|
 | FX-QVARS | zz xrRazom Fix - Quest Vars Sync | табличные переменные заданий доходят до пира |
 | FX-TBOARD | zz xrRazom Fix - Taskboard Peer Details | текст карточек PDA Taskboard Redesign у пира |
-| FX-TURNIN | zz xrRazom Fix - Turned-in Task Sync | пир не получает заново сданные задания |
-| FX-FETCH | zz xrRazom Fix - Fetch Reward | честная награда за «принеси» |
-| FX-LASER | zz xrRazom Fix - Laser State | состояние лазеров пира после переподключения |
-| FX-BELT | zz xrRazom Fix - Remember Belt | память пояса Remember Outfit Belt у пира |
-| FX-PARTS | zz xrRazom Fix - Weapon Parts Tooltip | вылет пира на подсказке оружия из трупа |
 | FX-KILLTR | zz xrRazom Fix - Kill Tracker Mirror Corpses | метки КПК: трупы-зеркала не «убиты пиром» |
-| FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag и прыжок GAMMA в коопе |
+| FX-LEDGE | zz xrRazom Fix - Ledge Grabbing | подтягивание на уступы с Anti-Lag в коопе |
 | FX-QLIST | zz xrRazom Fix - Taskboard Refresh | «Обновить» в Taskboard у пира: без просадки у хоста, задания показываются по мере ответов |
+
+## Удалённые фиксы
+
+Статус `удалено`, требования зачёркнуты, тестов нет. Причина — интегрировано в xrRazom 1.5.
+
+| ID | Мод |
+|---|---|
+| FX-TURNIN | zz xrRazom Fix - Turned-in Task Sync |
+| FX-FETCH | zz xrRazom Fix - Fetch Reward |
+| FX-LASER | zz xrRazom Fix - Laser State |
+| FX-BELT | zz xrRazom Fix - Remember Belt |
+| FX-PARTS | zz xrRazom Fix - Weapon Parts Tooltip |
 
 ## Другие моды в пакете
 
